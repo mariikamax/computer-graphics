@@ -19,6 +19,15 @@ import static com.cgvsu.render_engine.GraphicConveyor.*;
 
 public class RenderEngine {
     private static ZBuffer zBuffer;
+    private static RenderSettings settings = new RenderSettings();
+
+    public static void setRenderSettings(RenderSettings newSettings) {
+        settings = newSettings;
+    }
+
+    public static RenderSettings getRenderSettings() {
+        return settings;
+    }
 
     public static void render(
             final GraphicsContext graphicsContext,
@@ -26,7 +35,6 @@ public class RenderEngine {
             final Model mesh,
             final int width,
             final int height,
-            final boolean useFill,
             final Color fillColor) {
 
         if (zBuffer == null || zBuffer.getWidth() != width || zBuffer.getHeight() != height) {
@@ -46,44 +54,69 @@ public class RenderEngine {
         modelViewProjectionMatrix.mul(viewMatrix);
         modelViewProjectionMatrix.mul(projectionMatrix);
 
-        if (useFill) {
-            for (Polygon polygon : mesh.polygons) {
-                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+        if (!settings.isFillPolygons() && !settings.isDrawWireframe()) {
+            renderWithLibrary(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
+            return;
+        }
 
-                if (vertexIndices.size() >= 3) {
-                    Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
-                    Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
-                    Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
+        if (settings.isDrawWireframe() && !settings.isFillPolygons()) {
+            drawWireframeOnly(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
+            return;
+        }
 
-                    Point2f[] screenPoints = new Point2f[3];
-                    float[] zValues = new float[3];
+        if (settings.isFillPolygons()) {
+            renderFillPolygons(graphicsContext, camera, mesh, modelViewProjectionMatrix, width, height, fillColor);
+        }
 
-                    javax.vecmath.Vector3f vec0 = new javax.vecmath.Vector3f(v0.x, v0.y, v0.z);
-                    javax.vecmath.Vector3f proj0 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec0);
-                    screenPoints[0] = vertexToPoint(proj0, width, height);
-                    zValues[0] = proj0.z;
+        if (settings.isDrawWireframe() && settings.isFillPolygons()) {
+            drawWireframeOverlay(graphicsContext, mesh, modelViewProjectionMatrix, width, height, Color.BLACK);
+        }
+    }
 
-                    javax.vecmath.Vector3f vec1 = new javax.vecmath.Vector3f(v1.x, v1.y, v1.z);
-                    javax.vecmath.Vector3f proj1 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec1);
-                    screenPoints[1] = vertexToPoint(proj1, width, height);
-                    zValues[1] = proj1.z;
+    private static void renderWithLibrary(
+            final GraphicsContext graphicsContext,
+            final Model mesh,
+            final Matrix4f modelViewProjectionMatrix,
+            final int width,
+            final int height,
+            final Color fillColor) {
 
-                    javax.vecmath.Vector3f vec2 = new javax.vecmath.Vector3f(v2.x, v2.y, v2.z);
-                    javax.vecmath.Vector3f proj2 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec2);
-                    screenPoints[2] = vertexToPoint(proj2, width, height);
-                    zValues[2] = proj2.z;
+        graphicsContext.setFill(fillColor);
 
-                    drawTriangleWithYourCode(
-                            graphicsContext.getPixelWriter(),
-                            zBuffer,
-                            (int)screenPoints[0].x, (int)screenPoints[0].y, zValues[0],
-                            (int)screenPoints[1].x, (int)screenPoints[1].y, zValues[1],
-                            (int)screenPoints[2].x, (int)screenPoints[2].y, zValues[2],
-                            fillColor
+        for (Polygon polygon : mesh.polygons) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+
+            if (vertexIndices.size() >= 3) {
+                double[] xPoints = new double[vertexIndices.size()];
+                double[] yPoints = new double[vertexIndices.size()];
+
+                for (int i = 0; i < vertexIndices.size(); i++) {
+                    Vector3f vertex = mesh.vertices.get(vertexIndices.get(i));
+                    // Конвертируем com.cgvsu.math.Vector3f в javax.vecmath.Vector3f
+                    javax.vecmath.Vector3f vec = new javax.vecmath.Vector3f(vertex.x, vertex.y, vertex.z);
+                    Point2f point = vertexToPoint(
+                            multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec),
+                            width, height
                     );
+                    xPoints[i] = point.x;
+                    yPoints[i] = point.y;
                 }
+
+                graphicsContext.fillPolygon(xPoints, yPoints, vertexIndices.size());
             }
         }
+    }
+
+    private static void drawWireframeOnly(
+            final GraphicsContext graphicsContext,
+            final Model mesh,
+            final Matrix4f modelViewProjectionMatrix,
+            final int width,
+            final int height,
+            final Color color) {
+
+        graphicsContext.setStroke(color);
+        graphicsContext.setLineWidth(1.0);
 
         for (Polygon polygon : mesh.polygons) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
@@ -91,6 +124,7 @@ public class RenderEngine {
 
             for (Integer vertexIndex : vertexIndices) {
                 Vector3f vertex = mesh.vertices.get(vertexIndex);
+                // Конвертируем com.cgvsu.math.Vector3f в javax.vecmath.Vector3f
                 javax.vecmath.Vector3f vertexVecmath = new javax.vecmath.Vector3f(vertex.x, vertex.y, vertex.z);
                 Point2f resultPoint = vertexToPoint(
                         multiplyMatrix4ByVector3(modelViewProjectionMatrix, vertexVecmath),
@@ -115,24 +149,92 @@ public class RenderEngine {
         }
     }
 
-    private static void drawTriangleWithYourCode(
-            final PixelWriter pixelWriter,
-            final ZBuffer zBuffer,
-            final int x0, final int y0, final float z0,
-            final int x1, final int y1, final float z1,
-            final int x2, final int y2, final float z2,
+    private static void renderFillPolygons(
+            final GraphicsContext graphicsContext,
+            final Camera camera,
+            final Model mesh,
+            final Matrix4f modelViewProjectionMatrix,
+            final int width,
+            final int height,
+            final Color fillColor) {
+
+        for (Polygon polygon : mesh.polygons) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+
+            if (vertexIndices.size() >= 3) {
+                Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
+                Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
+                Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
+
+                Point2f[] screenPoints = new Point2f[3];
+                float[] zValues = new float[3];
+
+                // Конвертируем com.cgvsu.math.Vector3f в javax.vecmath.Vector3f
+                javax.vecmath.Vector3f vec0 = new javax.vecmath.Vector3f(v0.x, v0.y, v0.z);
+                javax.vecmath.Vector3f proj0 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec0);
+                screenPoints[0] = vertexToPoint(proj0, width, height);
+                zValues[0] = proj0.z;
+
+                javax.vecmath.Vector3f vec1 = new javax.vecmath.Vector3f(v1.x, v1.y, v1.z);
+                javax.vecmath.Vector3f proj1 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec1);
+                screenPoints[1] = vertexToPoint(proj1, width, height);
+                zValues[1] = proj1.z;
+
+                javax.vecmath.Vector3f vec2 = new javax.vecmath.Vector3f(v2.x, v2.y, v2.z);
+                javax.vecmath.Vector3f proj2 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec2);
+                screenPoints[2] = vertexToPoint(proj2, width, height);
+                zValues[2] = proj2.z;
+
+                // Используем Z-буфер для заливки
+                PixelWriterWrapper wrapper = new PixelWriterWrapper(
+                        graphicsContext.getPixelWriter(),
+                        zBuffer,
+                        (int)screenPoints[0].x, (int)screenPoints[0].y, zValues[0],
+                        (int)screenPoints[1].x, (int)screenPoints[1].y, zValues[1],
+                        (int)screenPoints[2].x, (int)screenPoints[2].y, zValues[2]
+                );
+
+                Rasterization.drawTriangleByIterator(
+                        wrapper,
+                        (int)screenPoints[0].x, (int)screenPoints[0].y,
+                        (int)screenPoints[1].x, (int)screenPoints[1].y,
+                        (int)screenPoints[2].x, (int)screenPoints[2].y,
+                        fillColor
+                );
+            }
+        }
+    }
+
+    private static void drawWireframeOverlay(
+            final GraphicsContext graphicsContext,
+            final Model mesh,
+            final Matrix4f modelViewProjectionMatrix,
+            final int width,
+            final int height,
             final Color color) {
 
-        PixelWriter wrapper = new PixelWriterWrapper(pixelWriter, zBuffer,
-                x0, y0, z0, x1, y1, z1, x2, y2, z2);
+        graphicsContext.setStroke(color);
+        graphicsContext.setLineWidth(1.0);
 
-        Rasterization.drawTriangleByIterator(
-                wrapper,
-                x0, y0,
-                x1, y1,
-                x2, y2,
-                color
-        );
+        for (Polygon polygon : mesh.polygons) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+
+            for (int i = 0; i < vertexIndices.size(); i++) {
+                int next = (i + 1) % vertexIndices.size();
+
+                Vector3f v1 = mesh.vertices.get(vertexIndices.get(i));
+                Vector3f v2 = mesh.vertices.get(vertexIndices.get(next));
+
+                // Конвертируем com.cgvsu.math.Vector3f в javax.vecmath.Vector3f
+                javax.vecmath.Vector3f vec1 = new javax.vecmath.Vector3f(v1.x, v1.y, v1.z);
+                javax.vecmath.Vector3f vec2 = new javax.vecmath.Vector3f(v2.x, v2.y, v2.z);
+
+                Point2f p1 = vertexToPoint(multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec1), width, height);
+                Point2f p2 = vertexToPoint(multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec2), width, height);
+
+                graphicsContext.strokeLine(p1.x, p1.y, p2.x, p2.y);
+            }
+        }
     }
 
     private static float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
@@ -174,24 +276,28 @@ class PixelWriterWrapper implements PixelWriter {
         }
     }
 
-    @Override
-    public <T extends Buffer> void setPixels(int i, int i1, int i2, int i3, PixelFormat<T> pixelFormat, T t, int i4) {
-    }
-
-    @Override
-    public void setPixels(int i, int i1, int i2, int i3, PixelFormat<ByteBuffer> pixelFormat, byte[] bytes, int i4, int i5) {
-    }
-
-    @Override
-    public void setPixels(int i, int i1, int i2, int i3, PixelFormat<IntBuffer> pixelFormat, int[] ints, int i4, int i5) {
-    }
-
-    @Override
-    public void setPixels(int i, int i1, int i2, int i3, PixelReader pixelReader, int i4, int i5) {
-    }
-
     private float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
         return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    }
+
+    @Override
+    public <T extends Buffer> void setPixels(int x, int y, int w, int h,
+                                             PixelFormat<T> pixelFormat, T buffer, int stride) {
+    }
+
+    @Override
+    public void setPixels(int x, int y, int w, int h,
+                          PixelFormat<ByteBuffer> pixelFormat, byte[] buffer, int offset, int stride) {
+    }
+
+    @Override
+    public void setPixels(int x, int y, int w, int h,
+                          PixelFormat<IntBuffer> pixelFormat, int[] buffer, int offset, int stride) {
+    }
+
+    @Override
+    public void setPixels(int x, int y, int w, int h,
+                          PixelReader reader, int srcX, int srcY) {
     }
 
     @Override

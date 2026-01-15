@@ -62,7 +62,6 @@ public class GuiController {
                         mesh,
                         (int) width,
                         (int) height,
-                        false,
                         javafx.scene.paint.Color.GRAY
                 );
             }
