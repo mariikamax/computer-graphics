@@ -48,6 +48,19 @@ public class Vector3f {
         );
     }
 
+    public static float dot(Vector3f a, Vector3f b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    public static Vector3f reflect(Vector3f incident, Vector3f normal) {
+        float dot = dot(incident, normal);
+        return new Vector3f(
+                incident.x - 2 * dot * normal.x,
+                incident.y - 2 * dot * normal.y,
+                incident.z - 2 * dot * normal.z
+        );
+    }
+
     public float length() {
         return (float) Math.sqrt(x * x + y * y + z * z);
     }
