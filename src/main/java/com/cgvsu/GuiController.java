@@ -59,12 +59,24 @@ public class GuiController {
             new Vector3f(0, 00, 100),
             new Vector3f(0, 0, 0),
             1.0F, 1, 0.01F, 100);
+
+    private com.cgvsu.model.Scene scene;
+
     private Timeline timeline;
 
     @FXML
     private void initialize() {
         anchorPane.prefWidthProperty().addListener((ov, oldValue, newValue) -> canvas.setWidth(newValue.doubleValue()));
         anchorPane.prefHeightProperty().addListener((ov, oldValue, newValue) -> canvas.setHeight(newValue.doubleValue()));
+
+        scene = new com.cgvsu.model.Scene();
+        scene.addCamera(camera);
+        com.cgvsu.render_engine.RenderEngine.setScene(scene);
+
+        com.cgvsu.model.Light light = scene.getLight();
+        light.setPosition(new com.cgvsu.math.Vector3f(50, 100, 50)); // Ставим свет в фиксированную позицию
+        light.setColor(new com.cgvsu.math.Vector3f(1, 1, 1)); // Белый свет
+        light.setIntensity(1.0f);
 
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
@@ -77,7 +89,11 @@ public class GuiController {
             camera.setAspectRatio((float) (width / height));
 
             if (mesh != null) {
-                RenderEngine.render(
+                if (!scene.getModels().contains(mesh)) {
+                    scene.addModel(mesh);
+                }
+
+                com.cgvsu.render_engine.RenderEngine.render(
                         canvas.getGraphicsContext2D(),
                         camera,
                         mesh,

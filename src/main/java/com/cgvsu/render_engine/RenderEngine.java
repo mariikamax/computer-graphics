@@ -6,6 +6,7 @@ import com.cgvsu.model.Model;
 import com.cgvsu.model.Polygon;
 import com.cgvsu.model.Light;
 import com.cgvsu.model.Scene;
+import com.cgvsu.model.ModelUtils;
 import com.cgvsu.rasterization.Rasterization;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.PixelFormat;
@@ -45,10 +46,12 @@ public class RenderEngine {
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
-            final Model mesh,
+            Model mesh,
             final int width,
             final int height,
             final Color fillColor) {
+
+        if (mesh == null) return;
 
         if (zBuffer == null || zBuffer.getWidth() != width || zBuffer.getHeight() != height) {
             zBuffer = new ZBuffer(width, height);
@@ -57,7 +60,9 @@ public class RenderEngine {
 
         graphicsContext.clearRect(0, 0, width, height);
 
-        if (mesh == null) return;
+        if (!mesh.isTriangulated()) {
+            ModelUtils.triangulate(mesh);
+        }
 
         Matrix4f modelMatrix = rotateScaleTranslate();
         Matrix4f viewMatrix = camera.getViewMatrix();
@@ -66,7 +71,6 @@ public class RenderEngine {
         Matrix4f modelViewProjectionMatrix = new Matrix4f(modelMatrix);
         modelViewProjectionMatrix.mul(viewMatrix);
         modelViewProjectionMatrix.mul(projectionMatrix);
-
 
         if (!settings.isFillPolygons() && !settings.isDrawWireframe()) {
             renderWithLibrary(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
@@ -78,13 +82,11 @@ public class RenderEngine {
             return;
         }
 
-        boolean needAdvancedRender = false;
+        boolean needAdvancedRender = settings.isUseLighting() || settings.isUseTexture();
         Light light = null;
         Texture texture = null;
 
-        if (settings.isUseLighting() || settings.isUseTexture()) {
-            needAdvancedRender = true;
-
+        if (needAdvancedRender) {
             if (settings.isUseLighting() && currentScene != null) {
                 light = currentScene.getLight();
             }
@@ -195,7 +197,7 @@ public class RenderEngine {
         for (Polygon polygon : mesh.polygons) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
 
-            if (vertexIndices.size() >= 3) {
+            if (vertexIndices.size() == 3) {
                 Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
                 Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
                 Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
@@ -221,16 +223,16 @@ public class RenderEngine {
                 PixelWriterWrapper wrapper = new PixelWriterWrapper(
                         graphicsContext.getPixelWriter(),
                         zBuffer,
-                        (int)screenPoints[0].x, (int)screenPoints[0].y, zValues[0],
-                        (int)screenPoints[1].x, (int)screenPoints[1].y, zValues[1],
-                        (int)screenPoints[2].x, (int)screenPoints[2].y, zValues[2]
+                        (int) screenPoints[0].x, (int) screenPoints[0].y, zValues[0],
+                        (int) screenPoints[1].x, (int) screenPoints[1].y, zValues[1],
+                        (int) screenPoints[2].x, (int) screenPoints[2].y, zValues[2]
                 );
 
                 Rasterization.drawTriangleByIterator(
                         wrapper,
-                        (int)screenPoints[0].x, (int)screenPoints[0].y,
-                        (int)screenPoints[1].x, (int)screenPoints[1].y,
-                        (int)screenPoints[2].x, (int)screenPoints[2].y,
+                        (int) screenPoints[0].x, (int) screenPoints[0].y,
+                        (int) screenPoints[1].x, (int) screenPoints[1].y,
+                        (int) screenPoints[2].x, (int) screenPoints[2].y,
                         fillColor
                 );
             }
@@ -279,17 +281,21 @@ public class RenderEngine {
             final Texture texture,
             final Color fillColor) {
 
-        PixelWriter pixelWriter = graphicsContext.getPixelWriter();
 
         javax.vecmath.Vector3f cameraPos = camera.getPosition();
         Vector3f cameraPosMath = new Vector3f(cameraPos.x, cameraPos.y, cameraPos.z);
 
+        int triangleCount = 0;
+        int renderedTriangles = 0;
+        int skippedTriangles = 0;
+
         for (Polygon polygon : mesh.polygons) {
+            triangleCount++;
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
             ArrayList<Integer> normalIndices = polygon.getNormalIndices();
 
-            if (vertexIndices.size() >= 3) {
+            if (vertexIndices.size() == 3) {
                 Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
                 Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
                 Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
@@ -318,6 +324,21 @@ public class RenderEngine {
                 zValues[2] = proj2.z;
                 worldPositions[2] = v2;
 
+                float minX = Math.min(screenPoints[0].x, Math.min(screenPoints[1].x, screenPoints[2].x));
+                float maxX = Math.max(screenPoints[0].x, Math.max(screenPoints[1].x, screenPoints[2].x));
+                float minY = Math.min(screenPoints[0].y, Math.min(screenPoints[1].y, screenPoints[2].y));
+                float maxY = Math.max(screenPoints[0].y, Math.max(screenPoints[1].y, screenPoints[2].y));
+
+                if (maxX < 0 || minX >= width || maxY < 0 || minY >= height) {
+                    skippedTriangles++;
+                    continue;
+                }
+
+                if (Math.abs(maxX - minX) < 0.5f && Math.abs(maxY - minY) < 0.5f) {
+                    skippedTriangles++;
+                    continue;
+                }
+
                 if (!normalIndices.isEmpty() && normalIndices.size() >= 3) {
                     normals[0] = mesh.normals.get(normalIndices.get(0));
                     normals[1] = mesh.normals.get(normalIndices.get(1));
@@ -333,27 +354,32 @@ public class RenderEngine {
                     texCoords[0] = mesh.textureVertices.get(textureIndices.get(0));
                     texCoords[1] = mesh.textureVertices.get(textureIndices.get(1));
                     texCoords[2] = mesh.textureVertices.get(textureIndices.get(2));
+                } else {
+                    texCoords[0] = null;
+                    texCoords[1] = null;
+                    texCoords[2] = null;
                 }
 
                 PixelWriterAdvancedWrapper wrapper = new PixelWriterAdvancedWrapper(
                         graphicsContext.getPixelWriter(),
                         zBuffer,
-                        (int)screenPoints[0].x, (int)screenPoints[0].y, zValues[0],
+                        (int) screenPoints[0].x, (int) screenPoints[0].y, zValues[0],
                         worldPositions[0], normals[0], texCoords[0],
-                        (int)screenPoints[1].x, (int)screenPoints[1].y, zValues[1],
+                        (int) screenPoints[1].x, (int) screenPoints[1].y, zValues[1],
                         worldPositions[1], normals[1], texCoords[1],
-                        (int)screenPoints[2].x, (int)screenPoints[2].y, zValues[2],
+                        (int) screenPoints[2].x, (int) screenPoints[2].y, zValues[2],
                         worldPositions[2], normals[2], texCoords[2],
                         light, texture, cameraPosMath, fillColor
                 );
 
                 Rasterization.drawTriangleByIterator(
                         wrapper,
-                        (int)screenPoints[0].x, (int)screenPoints[0].y,
-                        (int)screenPoints[1].x, (int)screenPoints[1].y,
-                        (int)screenPoints[2].x, (int)screenPoints[2].y,
+                        (int) screenPoints[0].x, (int) screenPoints[0].y,
+                        (int) screenPoints[1].x, (int) screenPoints[1].y,
+                        (int) screenPoints[2].x, (int) screenPoints[2].y,
                         fillColor
                 );
+                renderedTriangles++;
             }
         }
     }
@@ -375,7 +401,8 @@ public class RenderEngine {
                 v2.z - v0.z
         );
 
-        return Vector3f.crossProduct(edge1, edge2).normalize();
+        Vector3f normal = Vector3f.crossProduct(edge1, edge2);
+        return normal.normalize();
     }
 
     private static float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
@@ -394,9 +421,15 @@ public class RenderEngine {
                                   int x2, int y2, float z2) {
             this.delegate = delegate;
             this.zBuffer = zBuffer;
-            this.x0 = x0; this.y0 = y0; this.z0 = z0;
-            this.x1 = x1; this.y1 = y1; this.z1 = z1;
-            this.x2 = x2; this.y2 = y2; this.z2 = z2;
+            this.x0 = x0;
+            this.y0 = y0;
+            this.z0 = z0;
+            this.x1 = x1;
+            this.y1 = y1;
+            this.z1 = z1;
+            this.x2 = x2;
+            this.y2 = y2;
+            this.z2 = z2;
         }
 
         @Override
@@ -481,9 +514,15 @@ public class RenderEngine {
                                           Vector3f cameraPos, Color baseColor) {
             this.delegate = delegate;
             this.zBuffer = zBuffer;
-            this.x0 = x0; this.y0 = y0; this.z0 = z0;
-            this.x1 = x1; this.y1 = y1; this.z1 = z1;
-            this.x2 = x2; this.y2 = y2; this.z2 = z2;
+            this.x0 = x0;
+            this.y0 = y0;
+            this.z0 = z0;
+            this.x1 = x1;
+            this.y1 = y1;
+            this.z1 = z1;
+            this.x2 = x2;
+            this.y2 = y2;
+            this.z2 = z2;
 
             this.worldPositions = new Vector3f[]{worldPos0, worldPos1, worldPos2};
             this.normals = new Vector3f[]{normal0, normal1, normal2};
@@ -493,6 +532,7 @@ public class RenderEngine {
             this.cameraPos = cameraPos;
             this.baseColor = baseColor;
         }
+
 
         @Override
         public void setColor(int x, int y, Color c) {
@@ -505,34 +545,42 @@ public class RenderEngine {
 
             if (w0 >= -1e-6f && w1 >= -1e-6f && w2 >= -1e-6f) {
                 float z = w0 * z0 + w1 * z1 + w2 * z2;
-                if (zBuffer.testAndSet(x, y, z)) {
+
+                boolean drawPixel = true; // Всегда рисуем
+
+                if (drawPixel) {
                     Color finalColor = c;
-
-                    float worldX = w0 * worldPositions[0].x + w1 * worldPositions[1].x + w2 * worldPositions[2].x;
-                    float worldY = w0 * worldPositions[0].y + w1 * worldPositions[1].y + w2 * worldPositions[2].y;
-                    float worldZ = w0 * worldPositions[0].z + w1 * worldPositions[1].z + w2 * worldPositions[2].z;
-                    Vector3f worldPos = new Vector3f(worldX, worldY, worldZ);
-
-                    float nx = w0 * normals[0].x + w1 * normals[1].x + w2 * normals[2].x;
-                    float ny = w0 * normals[0].y + w1 * normals[1].y + w2 * normals[2].y;
-                    float nz = w0 * normals[0].z + w1 * normals[1].z + w2 * normals[2].z;
-                    Vector3f normal = new Vector3f(nx, ny, nz);
-                    normal.normalize();
 
                     if (texture != null && texCoords[0] != null && texture.isLoaded()) {
                         try {
-                            float texU = w0 * texCoords[0].x + w1 * texCoords[1].x + w2 * texCoords[2].x;
-                            float texV = w0 * texCoords[0].y + w1 * texCoords[1].y + w2 * texCoords[2].y;
+                            float oneOverZ0 = 1.0f / Math.max(z0, 0.0001f);
+                            float oneOverZ1 = 1.0f / Math.max(z1, 0.0001f);
+                            float oneOverZ2 = 1.0f / Math.max(z2, 0.0001f);
+
+                            float uOverZ0 = texCoords[0].x * oneOverZ0;
+                            float vOverZ0 = texCoords[0].y * oneOverZ0;
+                            float uOverZ1 = texCoords[1].x * oneOverZ1;
+                            float vOverZ1 = texCoords[1].y * oneOverZ1;
+                            float uOverZ2 = texCoords[2].x * oneOverZ2;
+                            float vOverZ2 = texCoords[2].y * oneOverZ2;
+
+                            float uOverZ = w0 * uOverZ0 + w1 * uOverZ1 + w2 * uOverZ2;
+                            float vOverZ = w0 * vOverZ0 + w1 * vOverZ1 + w2 * vOverZ2;
+
+                            float oneOverZ = w0 * oneOverZ0 + w1 * oneOverZ1 + w2 * oneOverZ2;
+
+                            float texU = uOverZ / oneOverZ;
+                            float texV = vOverZ / oneOverZ;
+
+                            texV = 1.0f - texV;
+
+
                             finalColor = texture.getColor(texU, texV);
+
                         } catch (Exception e) {
-                            finalColor = baseColor;
+                            finalColor = Color.RED;
                         }
                     }
-
-                    if (light != null) {
-                        finalColor = applyLighting(finalColor, worldPos, normal);
-                    }
-
                     delegate.setColor(x, y, finalColor);
                 }
             }
@@ -547,9 +595,9 @@ public class RenderEngine {
             viewDir.normalize();
 
             Vector3f materialColor = new Vector3f(
-                    (float)color.getRed(),
-                    (float)color.getGreen(),
-                    (float)color.getBlue()
+                    (float) color.getRed(),
+                    (float) color.getGreen(),
+                    (float) color.getBlue()
             );
 
             Vector3f lightColor = calculatePhongLighting(light, worldPos, normal, viewDir, materialColor);
@@ -584,7 +632,7 @@ public class RenderEngine {
                     new Vector3f(-lightDir.x, -lightDir.y, -lightDir.z),
                     normal
             );
-            float spec = (float)Math.pow(Math.max(Vector3f.dot(viewDir, reflectDir), 0.0f), 32);
+            float spec = (float) Math.pow(Math.max(Vector3f.dot(viewDir, reflectDir), 0.0f), 32);
 
             Vector3f lightColorVec = light.getColor();
             float intensity = light.getIntensity();

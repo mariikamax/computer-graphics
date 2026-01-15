@@ -17,7 +17,57 @@ public class ModelUtils {
 
             int nVertices = vertexIndices.size();
 
-            if (nVertices > 3) {
+            if (nVertices == 4) {
+
+                Polygon triangle1 = new Polygon();
+                ArrayList<Integer> triVertices1 = new ArrayList<>();
+                triVertices1.add(vertexIndices.get(0));
+                triVertices1.add(vertexIndices.get(1));
+                triVertices1.add(vertexIndices.get(2));
+                triangle1.setVertexIndices(triVertices1);
+
+                if (!textureIndices.isEmpty() && textureIndices.size() >= 3) {
+                    ArrayList<Integer> triTextures1 = new ArrayList<>();
+                    triTextures1.add(textureIndices.get(0));
+                    triTextures1.add(textureIndices.get(1));
+                    triTextures1.add(textureIndices.get(2));
+                    triangle1.setTextureVertexIndices(triTextures1);
+                }
+
+                if (!normalIndices.isEmpty() && normalIndices.size() >= 3) {
+                    ArrayList<Integer> triNormals1 = new ArrayList<>();
+                    triNormals1.add(normalIndices.get(0));
+                    triNormals1.add(normalIndices.get(1));
+                    triNormals1.add(normalIndices.get(2));
+                    triangle1.setNormalIndices(triNormals1);
+                }
+                newPolygons.add(triangle1);
+
+                Polygon triangle2 = new Polygon();
+                ArrayList<Integer> triVertices2 = new ArrayList<>();
+                triVertices2.add(vertexIndices.get(2));
+                triVertices2.add(vertexIndices.get(3));
+                triVertices2.add(vertexIndices.get(0));
+                triangle2.setVertexIndices(triVertices2);
+
+                if (!textureIndices.isEmpty() && textureIndices.size() >= 4) {
+                    ArrayList<Integer> triTextures2 = new ArrayList<>();
+                    triTextures2.add(textureIndices.get(2));
+                    triTextures2.add(textureIndices.get(3));
+                    triTextures2.add(textureIndices.get(0));
+                    triangle2.setTextureVertexIndices(triTextures2);
+                }
+
+                if (!normalIndices.isEmpty() && normalIndices.size() >= 4) {
+                    ArrayList<Integer> triNormals2 = new ArrayList<>();
+                    triNormals2.add(normalIndices.get(2));
+                    triNormals2.add(normalIndices.get(3));
+                    triNormals2.add(normalIndices.get(0));
+                    triangle2.setNormalIndices(triNormals2);
+                }
+                newPolygons.add(triangle2);
+
+            } else if (nVertices > 4) {
                 for (int i = 1; i < nVertices - 1; i++) {
                     Polygon triangle = new Polygon();
 
@@ -27,7 +77,7 @@ public class ModelUtils {
                     triVertices.add(vertexIndices.get(i + 1));
                     triangle.setVertexIndices(triVertices);
 
-                    if (!textureIndices.isEmpty()) {
+                    if (!textureIndices.isEmpty() && textureIndices.size() >= nVertices) {
                         ArrayList<Integer> triTextures = new ArrayList<>();
                         triTextures.add(textureIndices.get(0));
                         triTextures.add(textureIndices.get(i));
@@ -35,7 +85,7 @@ public class ModelUtils {
                         triangle.setTextureVertexIndices(triTextures);
                     }
 
-                    if (!normalIndices.isEmpty()) {
+                    if (!normalIndices.isEmpty() && normalIndices.size() >= nVertices) {
                         ArrayList<Integer> triNormals = new ArrayList<>();
                         triNormals.add(normalIndices.get(0));
                         triNormals.add(normalIndices.get(i));
