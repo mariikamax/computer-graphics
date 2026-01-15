@@ -22,7 +22,7 @@ import static com.cgvsu.render_engine.GraphicConveyor.*;
 
 public class RenderEngine {
     private static ZBuffer zBuffer;
-    private static RenderSettings settings = new RenderSettings();
+    private static final RenderSettings settings = new RenderSettings();
     private static Scene currentScene = null;
 
     public static void setScene(Scene scene) {
@@ -30,7 +30,12 @@ public class RenderEngine {
     }
 
     public static void setRenderSettings(RenderSettings newSettings) {
-        settings = newSettings;
+        settings.setDrawWireframe(newSettings.isDrawWireframe());
+        settings.setFillPolygons(newSettings.isFillPolygons());
+        settings.setUseTexture(newSettings.isUseTexture());
+        settings.setUseLighting(newSettings.isUseLighting());
+        settings.setCurrentTexture(newSettings.getCurrentTexture());
+        settings.setFillColor(newSettings.getFillColor());
     }
 
     public static RenderSettings getRenderSettings() {
@@ -62,6 +67,7 @@ public class RenderEngine {
         modelViewProjectionMatrix.mul(viewMatrix);
         modelViewProjectionMatrix.mul(projectionMatrix);
 
+
         if (!settings.isFillPolygons() && !settings.isDrawWireframe()) {
             renderWithLibrary(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
             return;
@@ -72,30 +78,25 @@ public class RenderEngine {
             return;
         }
 
+        boolean needAdvancedRender = false;
+        Light light = null;
+        Texture texture = null;
+
+        if (settings.isUseLighting() || settings.isUseTexture()) {
+            needAdvancedRender = true;
+
+            if (settings.isUseLighting() && currentScene != null) {
+                light = currentScene.getLight();
+            }
+
+            if (settings.isUseTexture()) {
+                texture = settings.getCurrentTexture();
+            }
+        }
+
         if (settings.isFillPolygons()) {
-            if (settings.isUseTexture() || settings.isUseLighting()) {
-                Light light = null;
-                Texture texture = null;
-
-                if (settings.isUseLighting() && currentScene != null) {
-                    light = currentScene.getLight();
-                    // Привязка света к камере
-                    if (light != null) {
-                        javax.vecmath.Vector3f cameraPos = camera.getPosition();
-                        com.cgvsu.math.Vector3f lightPos = new com.cgvsu.math.Vector3f(
-                                cameraPos.x,
-                                cameraPos.y,
-                                cameraPos.z
-                        );
-                        light.setPosition(lightPos);
-                    }
-                }
-
-                if (settings.isUseTexture()) {
-                    texture = settings.getCurrentTexture();
-                }
-
-                renderWithLightingAndTexture(
+            if (needAdvancedRender) {
+                renderAdvanced(
                         graphicsContext, camera, mesh, modelViewProjectionMatrix,
                         width, height, light, texture, fillColor
                 );
@@ -267,30 +268,6 @@ public class RenderEngine {
         }
     }
 
-    private static float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
-        return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
-    }
-
-    private static void renderWithLightingAndTexture(
-            final GraphicsContext graphicsContext,
-            final Camera camera,
-            final Model mesh,
-            final Matrix4f modelViewProjectionMatrix,
-            final int width,
-            final int height,
-            final Light light,
-            final Texture texture,
-            final Color fillColor) {
-
-        if (light != null || texture != null) {
-            renderAdvanced(graphicsContext, camera, mesh, modelViewProjectionMatrix,
-                    width, height, light, texture, fillColor);
-        } else {
-            renderFillPolygons(graphicsContext, mesh, modelViewProjectionMatrix,
-                    width, height, fillColor);
-        }
-    }
-
     private static void renderAdvanced(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -401,6 +378,10 @@ public class RenderEngine {
         return Vector3f.crossProduct(edge1, edge2).normalize();
     }
 
+    private static float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
+        return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    }
+
     private static class PixelWriterWrapper implements PixelWriter {
         private final PixelWriter delegate;
         private final ZBuffer zBuffer;
@@ -433,10 +414,6 @@ public class RenderEngine {
                     delegate.setColor(x, y, c);
                 }
             }
-        }
-
-        private float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
-            return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
         }
 
         @Override
@@ -631,10 +608,6 @@ public class RenderEngine {
             result.z = Math.min(1.0f, Math.max(0.0f, result.z));
 
             return result;
-        }
-
-        private float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
-            return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
         }
 
         @Override

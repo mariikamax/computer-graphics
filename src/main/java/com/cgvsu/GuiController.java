@@ -2,13 +2,17 @@ package com.cgvsu;
 
 import com.cgvsu.model.ModelUtils;
 import com.cgvsu.render_engine.RenderEngine;
+import com.cgvsu.render_engine.RenderSettings;
+import com.cgvsu.render_engine.Texture;
 import javafx.fxml.FXML;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
@@ -27,18 +31,34 @@ public class GuiController {
     final private float TRANSLATION = 0.5F;
 
     @FXML
-    AnchorPane anchorPane;
+    private AnchorPane anchorPane;
 
     @FXML
     private Canvas canvas;
 
-    private Model mesh = null;
+    @FXML
+    private VBox controlPanel;
 
+    @FXML
+    private CheckBox wireframeCheckBox;
+
+    @FXML
+    private CheckBox fillPolygonsCheckBox;
+
+    @FXML
+    private CheckBox textureCheckBox;
+
+    @FXML
+    private CheckBox lightingCheckBox;
+
+    @FXML
+    private Label modelNameLabel;
+
+    private Model mesh = null;
     private Camera camera = new Camera(
             new Vector3f(0, 00, 100),
             new Vector3f(0, 0, 0),
             1.0F, 1, 0.01F, 100);
-
     private Timeline timeline;
 
     @FXML
@@ -70,6 +90,17 @@ public class GuiController {
 
         timeline.getKeyFrames().add(frame);
         timeline.play();
+
+        initRenderSettings();
+    }
+
+    private void initRenderSettings() {
+        RenderSettings settings = RenderEngine.getRenderSettings();
+
+        wireframeCheckBox.setSelected(settings.isDrawWireframe());
+        fillPolygonsCheckBox.setSelected(settings.isFillPolygons());
+        textureCheckBox.setSelected(settings.isUseTexture());
+        lightingCheckBox.setSelected(settings.isUseLighting());
     }
 
     @FXML
@@ -92,8 +123,82 @@ public class GuiController {
             ModelUtils.triangulate(mesh);
             ModelUtils.calculateNormals(mesh);
 
+            modelNameLabel.setText(file.getName());
+
         } catch (IOException exception) {
+            showError("Failed to load model: " + exception.getMessage());
         }
+    }
+
+    @FXML
+    private void handleWireframe(ActionEvent event) {
+        RenderSettings settings = RenderEngine.getRenderSettings();
+        settings.setDrawWireframe(wireframeCheckBox.isSelected());
+    }
+
+    @FXML
+    private void handleFillPolygons(ActionEvent event) {
+        RenderSettings settings = RenderEngine.getRenderSettings();
+        settings.setFillPolygons(fillPolygonsCheckBox.isSelected());
+    }
+
+    @FXML
+    private void handleTexture(ActionEvent event) {
+        RenderSettings settings = RenderEngine.getRenderSettings();
+        settings.setUseTexture(textureCheckBox.isSelected());
+    }
+
+    @FXML
+    private void handleLighting(ActionEvent event) {
+        RenderSettings settings = RenderEngine.getRenderSettings();
+        settings.setUseLighting(lightingCheckBox.isSelected());
+    }
+
+    @FXML
+    private void handleLoadTexture(ActionEvent event) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif")
+        );
+        fileChooser.setTitle("Load Texture");
+
+        File file = fileChooser.showOpenDialog(canvas.getScene().getWindow());
+        if (file != null) {
+            try {
+                Texture texture = new Texture(file.getAbsolutePath());
+                RenderEngine.getRenderSettings().setCurrentTexture(texture);
+
+                textureCheckBox.setSelected(true);
+                handleTexture(null); // Обновляем настройки
+
+            } catch (Exception e) {
+                showError("Failed to load texture: " + e.getMessage());
+            }
+        }
+    }
+
+    @FXML
+    private void addCamera() {
+        showInfo("Add Camera", "Camera addition not implemented yet");
+    }
+
+    @FXML
+    private void removeCamera() {
+        showInfo("Remove Camera", "Camera removal not implemented yet");
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     @FXML

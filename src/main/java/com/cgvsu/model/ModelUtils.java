@@ -106,19 +106,4 @@ public class ModelUtils {
             }
         }
     }
-
-    private static Vector3f calculateFaceNormal(Vector3f v1, Vector3f v2, Vector3f v3) {
-        Vector3f edge1 = new Vector3f(v2.x - v1.x, v2.y - v1.y, v2.z - v1.z);
-        Vector3f edge2 = new Vector3f(v3.x - v1.x, v3.y - v1.y, v3.z - v1.z);
-
-        float nx = edge1.y * edge2.z - edge1.z * edge2.y;
-        float ny = edge1.z * edge2.x - edge1.x * edge2.z;
-        float nz = edge1.x * edge2.y - edge1.y * edge2.x;
-
-        float length = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
-        if (length > 0) {
-            return new Vector3f(nx / length, ny / length, nz / length);
-        }
-        return new Vector3f(0, 0, 0);
-    }
 }
