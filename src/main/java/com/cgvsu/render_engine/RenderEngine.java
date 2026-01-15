@@ -1,22 +1,43 @@
 package com.cgvsu.render_engine;
 
+import com.cgvsu.math.Vector3f;
+import com.cgvsu.model.Model;
+import com.cgvsu.model.Polygon;
+import com.cgvsu.rasterization.Rasterization;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.paint.Color;
+import javax.vecmath.*;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 
-import com.cgvsu.math.Vector3f;
-import javafx.scene.canvas.GraphicsContext;
-import javax.vecmath.*;
-import com.cgvsu.model.Model;
 import static com.cgvsu.render_engine.GraphicConveyor.*;
 
 public class RenderEngine {
+    private static ZBuffer zBuffer;
 
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
             final Model mesh,
             final int width,
-            final int height)
-    {
+            final int height,
+            final boolean useFill,
+            final Color fillColor) {
+
+        if (zBuffer == null || zBuffer.getWidth() != width || zBuffer.getHeight() != height) {
+            zBuffer = new ZBuffer(width, height);
+        }
+        zBuffer.clear();
+
+        graphicsContext.clearRect(0, 0, width, height);
+
+        if (mesh == null) return;
+
         Matrix4f modelMatrix = rotateScaleTranslate();
         Matrix4f viewMatrix = camera.getViewMatrix();
         Matrix4f projectionMatrix = camera.getProjectionMatrix();
@@ -25,34 +46,167 @@ public class RenderEngine {
         modelViewProjectionMatrix.mul(viewMatrix);
         modelViewProjectionMatrix.mul(projectionMatrix);
 
-        final int nPolygons = mesh.polygons.size();
-        for (int polygonInd = 0; polygonInd < nPolygons; ++polygonInd) {
-            final int nVerticesInPolygon = mesh.polygons.get(polygonInd).getVertexIndices().size();
+        if (useFill) {
+            for (Polygon polygon : mesh.polygons) {
+                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
 
+                if (vertexIndices.size() >= 3) {
+                    Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
+                    Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
+                    Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
+
+                    Point2f[] screenPoints = new Point2f[3];
+                    float[] zValues = new float[3];
+
+                    javax.vecmath.Vector3f vec0 = new javax.vecmath.Vector3f(v0.x, v0.y, v0.z);
+                    javax.vecmath.Vector3f proj0 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec0);
+                    screenPoints[0] = vertexToPoint(proj0, width, height);
+                    zValues[0] = proj0.z;
+
+                    javax.vecmath.Vector3f vec1 = new javax.vecmath.Vector3f(v1.x, v1.y, v1.z);
+                    javax.vecmath.Vector3f proj1 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec1);
+                    screenPoints[1] = vertexToPoint(proj1, width, height);
+                    zValues[1] = proj1.z;
+
+                    javax.vecmath.Vector3f vec2 = new javax.vecmath.Vector3f(v2.x, v2.y, v2.z);
+                    javax.vecmath.Vector3f proj2 = multiplyMatrix4ByVector3(modelViewProjectionMatrix, vec2);
+                    screenPoints[2] = vertexToPoint(proj2, width, height);
+                    zValues[2] = proj2.z;
+
+                    drawTriangleWithYourCode(
+                            graphicsContext.getPixelWriter(),
+                            zBuffer,
+                            (int)screenPoints[0].x, (int)screenPoints[0].y, zValues[0],
+                            (int)screenPoints[1].x, (int)screenPoints[1].y, zValues[1],
+                            (int)screenPoints[2].x, (int)screenPoints[2].y, zValues[2],
+                            fillColor
+                    );
+                }
+            }
+        }
+
+        for (Polygon polygon : mesh.polygons) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             ArrayList<Point2f> resultPoints = new ArrayList<>();
-            for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                Vector3f vertex = mesh.vertices.get(mesh.polygons.get(polygonInd).getVertexIndices().get(vertexInPolygonInd));
 
+            for (Integer vertexIndex : vertexIndices) {
+                Vector3f vertex = mesh.vertices.get(vertexIndex);
                 javax.vecmath.Vector3f vertexVecmath = new javax.vecmath.Vector3f(vertex.x, vertex.y, vertex.z);
-
-                Point2f resultPoint = vertexToPoint(multiplyMatrix4ByVector3(modelViewProjectionMatrix, vertexVecmath), width, height);
+                Point2f resultPoint = vertexToPoint(
+                        multiplyMatrix4ByVector3(modelViewProjectionMatrix, vertexVecmath),
+                        width, height
+                );
                 resultPoints.add(resultPoint);
             }
 
-            for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
+            if (resultPoints.size() > 1) {
+                for (int i = 1; i < resultPoints.size(); i++) {
+                    graphicsContext.strokeLine(
+                            resultPoints.get(i - 1).x, resultPoints.get(i - 1).y,
+                            resultPoints.get(i).x, resultPoints.get(i).y
+                    );
+                }
                 graphicsContext.strokeLine(
-                        resultPoints.get(vertexInPolygonInd - 1).x,
-                        resultPoints.get(vertexInPolygonInd - 1).y,
-                        resultPoints.get(vertexInPolygonInd).x,
-                        resultPoints.get(vertexInPolygonInd).y);
+                        resultPoints.get(resultPoints.size() - 1).x,
+                        resultPoints.get(resultPoints.size() - 1).y,
+                        resultPoints.get(0).x, resultPoints.get(0).y
+                );
             }
-
-            if (nVerticesInPolygon > 0)
-                graphicsContext.strokeLine(
-                        resultPoints.get(nVerticesInPolygon - 1).x,
-                        resultPoints.get(nVerticesInPolygon - 1).y,
-                        resultPoints.get(0).x,
-                        resultPoints.get(0).y);
         }
+    }
+
+    private static void drawTriangleWithYourCode(
+            final PixelWriter pixelWriter,
+            final ZBuffer zBuffer,
+            final int x0, final int y0, final float z0,
+            final int x1, final int y1, final float z1,
+            final int x2, final int y2, final float z2,
+            final Color color) {
+
+        PixelWriter wrapper = new PixelWriterWrapper(pixelWriter, zBuffer,
+                x0, y0, z0, x1, y1, z1, x2, y2, z2);
+
+        Rasterization.drawTriangleByIterator(
+                wrapper,
+                x0, y0,
+                x1, y1,
+                x2, y2,
+                color
+        );
+    }
+
+    private static float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
+        return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    }
+}
+
+class PixelWriterWrapper implements PixelWriter {
+    private final PixelWriter delegate;
+    private final ZBuffer zBuffer;
+    private final float z0, z1, z2;
+    private final int x0, y0, x1, y1, x2, y2;
+
+    public PixelWriterWrapper(PixelWriter delegate, ZBuffer zBuffer,
+                              int x0, int y0, float z0,
+                              int x1, int y1, float z1,
+                              int x2, int y2, float z2) {
+        this.delegate = delegate;
+        this.zBuffer = zBuffer;
+        this.x0 = x0; this.y0 = y0; this.z0 = z0;
+        this.x1 = x1; this.y1 = y1; this.z1 = z1;
+        this.x2 = x2; this.y2 = y2; this.z2 = z2;
+    }
+
+    @Override
+    public void setColor(int x, int y, Color c) {
+        float area = edgeFunction(x0, y0, x1, y1, x2, y2);
+        if (Math.abs(area) < 1e-6f) return;
+
+        float w0 = edgeFunction(x1, y1, x2, y2, x, y) / area;
+        float w1 = edgeFunction(x2, y2, x0, y0, x, y) / area;
+        float w2 = edgeFunction(x0, y0, x1, y1, x, y) / area;
+
+        if (w0 >= -1e-6f && w1 >= -1e-6f && w2 >= -1e-6f) {
+            float z = w0 * z0 + w1 * z1 + w2 * z2;
+            if (zBuffer.testAndSet(x, y, z)) {
+                delegate.setColor(x, y, c);
+            }
+        }
+    }
+
+    @Override
+    public <T extends Buffer> void setPixels(int i, int i1, int i2, int i3, PixelFormat<T> pixelFormat, T t, int i4) {
+    }
+
+    @Override
+    public void setPixels(int i, int i1, int i2, int i3, PixelFormat<ByteBuffer> pixelFormat, byte[] bytes, int i4, int i5) {
+    }
+
+    @Override
+    public void setPixels(int i, int i1, int i2, int i3, PixelFormat<IntBuffer> pixelFormat, int[] ints, int i4, int i5) {
+    }
+
+    @Override
+    public void setPixels(int i, int i1, int i2, int i3, PixelReader pixelReader, int i4, int i5) {
+    }
+
+    private float edgeFunction(float ax, float ay, float bx, float by, float px, float py) {
+        return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    }
+
+    @Override
+    public PixelFormat getPixelFormat() {
+        return null;
+    }
+
+    @Override
+    public void setArgb(int x, int y, int argb) {
+        Color c = Color.rgb(
+                (argb >> 16) & 0xFF,
+                (argb >> 8) & 0xFF,
+                argb & 0xFF,
+                ((argb >> 24) & 0xFF) / 255.0
+        );
+        setColor(x, y, c);
     }
 }
