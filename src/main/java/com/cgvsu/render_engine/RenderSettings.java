@@ -1,11 +1,16 @@
 package com.cgvsu.render_engine;
 
+import javafx.scene.paint.Color;
+
 public class RenderSettings {
     private boolean drawWireframe = false;
     private boolean useTexture = false;
     private boolean useLighting = false;
     private boolean fillPolygons = true;
     private boolean useZBufferForWireframe = false;
+    private Color fillColor = Color.GRAY;
+    private Texture currentTexture = null;
+
 
     public RenderSettings() {}
 
@@ -33,4 +38,10 @@ public class RenderSettings {
     public void setUseZBufferForWireframe(boolean useZBufferForWireframe) {
         this.useZBufferForWireframe = useZBufferForWireframe;
     }
+
+    public Color getFillColor() { return fillColor; }
+    public void setFillColor(Color fillColor) { this.fillColor = fillColor; }
+
+    public Texture getCurrentTexture() { return currentTexture; }
+    public void setCurrentTexture(Texture texture) { this.currentTexture = texture; }
 }
