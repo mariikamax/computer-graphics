@@ -22,8 +22,13 @@ public class ObjReader {
 		int lineInd = 0;
 		Scanner scanner = new Scanner(fileContent);
 		while (scanner.hasNextLine()) {
-			final String line = scanner.nextLine();
-			ArrayList<String> wordsInLine = new ArrayList<String>(Arrays.asList(line.split("\\s+")));
+			final String line = scanner.nextLine().trim();
+
+			if (line.isEmpty() || line.startsWith("#")) {
+				continue;
+			}
+
+			ArrayList<String> wordsInLine = new ArrayList<>(Arrays.asList(line.split("\\s+")));
 			if (wordsInLine.isEmpty()) {
 				continue;
 			}
@@ -32,125 +37,173 @@ public class ObjReader {
 			wordsInLine.remove(0);
 
 			++lineInd;
-			switch (token) {
-				// Для структур типа вершин методы написаны так, чтобы ничего не знать о внешней среде.
-				// Они принимают только то, что им нужно для работы, а возвращают только то, что могут создать.
-				// Исключение - индекс строки. Он прокидывается, чтобы выводить сообщение об ошибке.
-				// Могло быть иначе. Например, метод parseVertex мог вместо возвращения вершины принимать вектор вершин
-				// модели или сам класс модели, работать с ним.
-				// Но такой подход может привести к большему количеству ошибок в коде. Например, в нем что-то может
-				// тайно сделаться с классом модели.
-				// А еще это портит читаемость
-				// И не стоит забывать про тесты. Чем проще вам задать данные для теста, проверить, что метод рабочий,
-				// тем лучше.
-				case OBJ_VERTEX_TOKEN -> result.vertices.add(parseVertex(wordsInLine, lineInd));
-				case OBJ_TEXTURE_TOKEN -> result.textureVertices.add(parseTextureVertex(wordsInLine, lineInd));
-				case OBJ_NORMAL_TOKEN -> result.normals.add(parseNormal(wordsInLine, lineInd));
-				case OBJ_FACE_TOKEN -> result.polygons.add(parseFace(wordsInLine, lineInd));
-				default -> {}
+			try {
+				switch (token) {
+					case OBJ_VERTEX_TOKEN -> result.vertices.add(parseVertex(wordsInLine, lineInd));
+					case OBJ_TEXTURE_TOKEN -> result.textureVertices.add(parseTextureVertex(wordsInLine, lineInd));
+					case OBJ_NORMAL_TOKEN -> result.normals.add(parseNormal(wordsInLine, lineInd));
+					case OBJ_FACE_TOKEN -> result.polygons.add(parseFace(wordsInLine, lineInd));
+					default -> {
+					}
+				}
+			} catch (ObjReaderException e) {
+				throw new ObjReaderException("Line " + lineInd + ": " + e.getMessage(), lineInd);
 			}
 		}
-
+		scanner.close();
 		return result;
 	}
 
-	// Всем методам кроме основного я поставил модификатор доступа protected, чтобы обращаться к ним в тестах
-	protected static Vector3f parseVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
+	private static Vector3f parseVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		try {
+			if (wordsInLineWithoutToken.size() < 3) {
+				throw new ObjReaderException("Too few vertex arguments. Expected 3, got " + wordsInLineWithoutToken.size(), lineInd);
+			}
+
 			return new Vector3f(
 					Float.parseFloat(wordsInLineWithoutToken.get(0)),
 					Float.parseFloat(wordsInLineWithoutToken.get(1)),
 					Float.parseFloat(wordsInLineWithoutToken.get(2)));
 
-		} catch(NumberFormatException e) {
-			throw new ObjReaderException("Failed to parse float value.", lineInd);
-
-		} catch(IndexOutOfBoundsException e) {
-			throw new ObjReaderException("Too few vertex arguments.", lineInd);
+		} catch (NumberFormatException e) {
+			throw new ObjReaderException("Failed to parse float value: " + e.getMessage(), lineInd);
 		}
 	}
 
-	protected static Vector2f parseTextureVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
+	private static Vector2f parseTextureVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		try {
+			if (wordsInLineWithoutToken.size() < 2) {
+				throw new ObjReaderException("Too few texture vertex arguments. Expected 2, got " + wordsInLineWithoutToken.size(), lineInd);
+			}
+
 			return new Vector2f(
 					Float.parseFloat(wordsInLineWithoutToken.get(0)),
 					Float.parseFloat(wordsInLineWithoutToken.get(1)));
 
-		} catch(NumberFormatException e) {
-			throw new ObjReaderException("Failed to parse float value.", lineInd);
-
-		} catch(IndexOutOfBoundsException e) {
-			throw new ObjReaderException("Too few texture vertex arguments.", lineInd);
+		} catch (NumberFormatException e) {
+			throw new ObjReaderException("Failed to parse float value: " + e.getMessage(), lineInd);
 		}
 	}
 
-	protected static Vector3f parseNormal(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
+	private static Vector3f parseNormal(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		try {
+			if (wordsInLineWithoutToken.size() < 3) {
+				throw new ObjReaderException("Too few normal arguments. Expected 3, got " + wordsInLineWithoutToken.size(), lineInd);
+			}
+
 			return new Vector3f(
 					Float.parseFloat(wordsInLineWithoutToken.get(0)),
 					Float.parseFloat(wordsInLineWithoutToken.get(1)),
 					Float.parseFloat(wordsInLineWithoutToken.get(2)));
 
-		} catch(NumberFormatException e) {
-			throw new ObjReaderException("Failed to parse float value.", lineInd);
-
-		} catch(IndexOutOfBoundsException e) {
-			throw new ObjReaderException("Too few normal arguments.", lineInd);
+		} catch (NumberFormatException e) {
+			throw new ObjReaderException("Failed to parse float value: " + e.getMessage(), lineInd);
 		}
 	}
 
-	protected static Polygon parseFace(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
-		ArrayList<Integer> onePolygonVertexIndices = new ArrayList<Integer>();
-		ArrayList<Integer> onePolygonTextureVertexIndices = new ArrayList<Integer>();
-		ArrayList<Integer> onePolygonNormalIndices = new ArrayList<Integer>();
+	private static Polygon parseFace(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
+		if (wordsInLineWithoutToken.size() < 3) {
+			throw new ObjReaderException("Too few vertices in polygon. Minimum 3 required, got " + wordsInLineWithoutToken.size(), lineInd);
+		}
+
+		ArrayList<Integer> onePolygonVertexIndices = new ArrayList<>();
+		ArrayList<Integer> onePolygonTextureVertexIndices = new ArrayList<>();
+		ArrayList<Integer> onePolygonNormalIndices = new ArrayList<>();
 
 		for (String s : wordsInLineWithoutToken) {
 			parseFaceWord(s, onePolygonVertexIndices, onePolygonTextureVertexIndices, onePolygonNormalIndices, lineInd);
 		}
 
+		// Проверяем, что все массивы имеют одинаковый размер (если они не пустые)
+		if (!onePolygonTextureVertexIndices.isEmpty() &&
+				onePolygonTextureVertexIndices.size() != onePolygonVertexIndices.size()) {
+			throw new ObjReaderException("Mismatched vertex and texture vertex indices in face", lineInd);
+		}
+
+		if (!onePolygonNormalIndices.isEmpty() &&
+				onePolygonNormalIndices.size() != onePolygonVertexIndices.size()) {
+			throw new ObjReaderException("Mismatched vertex and normal indices in face", lineInd);
+		}
+
 		Polygon result = new Polygon();
 		result.setVertexIndices(onePolygonVertexIndices);
-		result.setTextureVertexIndices(onePolygonTextureVertexIndices);
-		result.setNormalIndices(onePolygonNormalIndices);
+		if (!onePolygonTextureVertexIndices.isEmpty()) {
+			result.setTextureVertexIndices(onePolygonTextureVertexIndices);
+		}
+		if (!onePolygonNormalIndices.isEmpty()) {
+			result.setNormalIndices(onePolygonNormalIndices);
+		}
 		return result;
 	}
 
-	// Обратите внимание, что для чтения полигонов я выделил еще один вспомогательный метод.
-	// Это бывает очень полезно и с точки зрения структурирования алгоритма в голове, и с точки зрения тестирования.
-	// В радикальных случаях не бойтесь выносить в отдельные методы и тестировать код из одной-двух строчек.
-	protected static void parseFaceWord(
+	private static void parseFaceWord(
 			String wordInLine,
 			ArrayList<Integer> onePolygonVertexIndices,
 			ArrayList<Integer> onePolygonTextureVertexIndices,
 			ArrayList<Integer> onePolygonNormalIndices,
 			int lineInd) {
 		try {
+			if (wordInLine == null || wordInLine.trim().isEmpty()) {
+				throw new ObjReaderException("Empty face element", lineInd);
+			}
+
 			String[] wordIndices = wordInLine.split("/");
-			switch (wordIndices.length) {
-				case 1 -> {
-					onePolygonVertexIndices.add(Integer.parseInt(wordIndices[0]) - 1);
-				}
-				case 2 -> {
-					onePolygonVertexIndices.add(Integer.parseInt(wordIndices[0]) - 1);
-					onePolygonTextureVertexIndices.add(Integer.parseInt(wordIndices[1]) - 1);
-				}
-				case 3 -> {
-					onePolygonVertexIndices.add(Integer.parseInt(wordIndices[0]) - 1);
-					onePolygonNormalIndices.add(Integer.parseInt(wordIndices[2]) - 1);
-					if (!wordIndices[1].equals("")) {
-						onePolygonTextureVertexIndices.add(Integer.parseInt(wordIndices[1]) - 1);
-					}
-				}
-				default -> {
-					throw new ObjReaderException("Invalid element size.", lineInd);
+
+			// Проверяем индексы на отрицательные значения (относительные индексы)
+			for (String indexStr : wordIndices) {
+				if (!indexStr.isEmpty() && indexStr.startsWith("-")) {
+					throw new ObjReaderException("Negative indices are not supported: " + wordInLine, lineInd);
 				}
 			}
 
-		} catch(NumberFormatException e) {
-			throw new ObjReaderException("Failed to parse int value.", lineInd);
+			switch (wordIndices.length) {
+				case 1 -> {
+					// Формат: f v1 v2 v3
+					int vertexIndex = Integer.parseInt(wordIndices[0]);
+					if (vertexIndex == 0) {
+						throw new ObjReaderException("Zero vertex index: " + wordInLine, lineInd);
+					}
+					onePolygonVertexIndices.add(Math.abs(vertexIndex) - 1);
+				}
+				case 2 -> {
+					// Формат: f v1/vt1 v2/vt2 v3/vt3
+					int vertexIndex = Integer.parseInt(wordIndices[0]);
+					int textureIndex = Integer.parseInt(wordIndices[1]);
 
-		} catch(IndexOutOfBoundsException e) {
-			throw new ObjReaderException("Too few arguments.", lineInd);
+					if (vertexIndex == 0 || textureIndex == 0) {
+						throw new ObjReaderException("Zero index in face element: " + wordInLine, lineInd);
+					}
+
+					onePolygonVertexIndices.add(Math.abs(vertexIndex) - 1);
+					onePolygonTextureVertexIndices.add(Math.abs(textureIndex) - 1);
+				}
+				case 3 -> {
+					// Форматы: f v1//vn1 v2//vn2 v3//vn3  или  f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3
+					int vertexIndex = Integer.parseInt(wordIndices[0]);
+					int normalIndex = Integer.parseInt(wordIndices[2]);
+
+					if (vertexIndex == 0 || normalIndex == 0) {
+						throw new ObjReaderException("Zero index in face element: " + wordInLine, lineInd);
+					}
+
+					onePolygonVertexIndices.add(Math.abs(vertexIndex) - 1);
+					onePolygonNormalIndices.add(Math.abs(normalIndex) - 1);
+
+					if (!wordIndices[1].isEmpty()) {
+						int textureIndex = Integer.parseInt(wordIndices[1]);
+						if (textureIndex == 0) {
+							throw new ObjReaderException("Zero texture index: " + wordInLine, lineInd);
+						}
+						onePolygonTextureVertexIndices.add(Math.abs(textureIndex) - 1);
+					}
+				}
+				default -> {
+					throw new ObjReaderException("Invalid face element format: " + wordInLine, lineInd);
+				}
+			}
+
+		} catch (NumberFormatException e) {
+			throw new ObjReaderException("Failed to parse integer in face element: " + wordInLine, lineInd);
 		}
 	}
 }
