@@ -16,19 +16,6 @@
             <SeparatorMenuItem/>
             <MenuItem text="Load Texture" onAction="#handleLoadTexture"/>
         </Menu>
-        <Menu text="View">
-            <CheckMenuItem fx:id="wireframeCheck" text="Wireframe" onAction="#handleWireframe"/>
-            <CheckMenuItem fx:id="fillPolygonsCheck" text="Fill Polygons" onAction="#handleFillPolygons" selected="true"/>
-            <CheckMenuItem fx:id="textureCheck" text="Texture" onAction="#handleTexture"/>
-            <CheckMenuItem fx:id="lightingCheck" text="Lighting" onAction="#handleLighting"/>
-        </Menu>
-        <Menu text="Camera">
-            <MenuItem text="Add Camera" onAction="#addCamera"/>
-            <MenuItem text="Remove Camera" onAction="#removeCamera"/>
-            <Menu text="Switch Camera">
-                <!-- Динамически заполняемые камеры -->
-            </Menu>
-        </Menu>
     </MenuBar>
 
     <Canvas fx:id="canvas"
@@ -37,7 +24,6 @@
             AnchorPane.leftAnchor="0"
             AnchorPane.rightAnchor="200"/>
 
-    <!-- Панель управления справа -->
     <VBox fx:id="controlPanel" spacing="10"
           AnchorPane.topAnchor="30"
           AnchorPane.bottomAnchor="0"

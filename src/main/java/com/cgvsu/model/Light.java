@@ -50,9 +50,9 @@ public class Light {
 
     public Vector3f getDirectionTo(Vector3f point) {
         Vector3f direction = new Vector3f(
-                position.x - point.x,
-                position.y - point.y,
-                position.z - point.z
+                point.x - position.x,
+                point.y - position.y,
+                point.z - position.z
         );
         return direction.normalize();
     }

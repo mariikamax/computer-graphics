@@ -25,9 +25,7 @@ public class Texture {
             this.height = (int)image.getHeight();
             this.pixelReader = image.getPixelReader();
 
-            System.out.println("Texture loaded: " + width + "x" + height + " from " + filePath);
         } catch (Exception e) {
-            System.err.println("Failed to load texture: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -35,11 +33,11 @@ public class Texture {
     public Color getColor(float u, float v) {
         if (pixelReader == null) return Color.WHITE;
 
-        u = u - (float)Math.floor(u);
-        v = v - (float)Math.floor(v);
+        u = Math.max(0.0f, Math.min(1.0f, u));
+        v = Math.max(0.0f, Math.min(1.0f, v));
 
-        int x = Math.max(0, Math.min(width - 1, (int)(u * width)));
-        int y = Math.max(0, Math.min(height - 1, (int)(v * height)));
+        int x = (int)(u * (width - 1));
+        int y = (int)(v * (height - 1));
 
         return pixelReader.getColor(x, y);
     }

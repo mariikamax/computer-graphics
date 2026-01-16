@@ -63,52 +63,64 @@ public class RenderEngine {
         if (!mesh.isTriangulated()) {
             ModelUtils.triangulate(mesh);
         }
+        if (mesh.normals.isEmpty()) {
+            ModelUtils.calculateNormals(mesh);
+        }
+
+        Camera cameraToUse = camera;
+        if (currentScene != null && currentScene.getActiveCamera() != null) {
+            cameraToUse = currentScene.getActiveCamera();
+        }
 
         Matrix4f modelMatrix = rotateScaleTranslate();
-        Matrix4f viewMatrix = camera.getViewMatrix();
-        Matrix4f projectionMatrix = camera.getProjectionMatrix();
+        Matrix4f viewMatrix = cameraToUse.getViewMatrix();
+        Matrix4f projectionMatrix = cameraToUse.getProjectionMatrix();
 
         Matrix4f modelViewProjectionMatrix = new Matrix4f(modelMatrix);
         modelViewProjectionMatrix.mul(viewMatrix);
         modelViewProjectionMatrix.mul(projectionMatrix);
 
-        if (!settings.isFillPolygons() && !settings.isDrawWireframe()) {
-            renderWithLibrary(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
+        if (!settings.isFillPolygons() && !settings.isDrawWireframe() &&
+                !settings.isUseTexture() && !settings.isUseLighting()) {
+            renderWithLibrary(graphicsContext, mesh, modelViewProjectionMatrix,
+                    width, height, fillColor);
             return;
         }
 
         if (settings.isDrawWireframe() && !settings.isFillPolygons()) {
-            drawWireframeOnly(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
+            drawWireframeOnly(graphicsContext, mesh, modelViewProjectionMatrix,
+                    width, height, fillColor);
             return;
         }
 
-        boolean needAdvancedRender = settings.isUseLighting() || settings.isUseTexture();
-        Light light = null;
-        Texture texture = null;
-
-        if (needAdvancedRender) {
-            if (settings.isUseLighting() && currentScene != null) {
-                light = currentScene.getLight();
-            }
-
-            if (settings.isUseTexture()) {
-                texture = settings.getCurrentTexture();
-            }
-        }
-
         if (settings.isFillPolygons()) {
+            boolean needAdvancedRender = settings.isUseLighting() || settings.isUseTexture();
+
             if (needAdvancedRender) {
+                Light light = null;
+                Texture texture = null;
+
+                if (settings.isUseLighting() && currentScene != null) {
+                    light = currentScene.getLight();
+                }
+
+                if (settings.isUseTexture()) {
+                    texture = settings.getCurrentTexture();
+                }
+
                 renderAdvanced(
-                        graphicsContext, camera, mesh, modelViewProjectionMatrix,
+                        graphicsContext, cameraToUse, mesh, modelViewProjectionMatrix,
                         width, height, light, texture, fillColor
                 );
             } else {
-                renderFillPolygons(graphicsContext, mesh, modelViewProjectionMatrix, width, height, fillColor);
+                renderFillPolygons(graphicsContext, mesh, modelViewProjectionMatrix,
+                        width, height, fillColor);
             }
         }
 
         if (settings.isDrawWireframe() && settings.isFillPolygons()) {
-            drawWireframeOverlay(graphicsContext, mesh, modelViewProjectionMatrix, width, height, Color.BLACK);
+            drawWireframeOverlay(graphicsContext, mesh, modelViewProjectionMatrix,
+                    width, height, Color.BLACK);
         }
     }
 
@@ -282,8 +294,9 @@ public class RenderEngine {
             final Color fillColor) {
 
 
-        javax.vecmath.Vector3f cameraPos = camera.getPosition();
-        Vector3f cameraPosMath = new Vector3f(cameraPos.x, cameraPos.y, cameraPos.z);
+        com.cgvsu.math.Vector3f cameraPosOur = camera.getPosition();
+        javax.vecmath.Vector3f cameraPosMath = new javax.vecmath.Vector3f(
+                cameraPosOur.x, cameraPosOur.y, cameraPosOur.z);
 
         int triangleCount = 0;
         int renderedTriangles = 0;
@@ -414,6 +427,7 @@ public class RenderEngine {
         private final ZBuffer zBuffer;
         private final float z0, z1, z2;
         private final int x0, y0, x1, y1, x2, y2;
+        private final float edge0, edge1, edge2;
 
         public PixelWriterWrapper(PixelWriter delegate, ZBuffer zBuffer,
                                   int x0, int y0, float z0,
@@ -430,19 +444,21 @@ public class RenderEngine {
             this.x2 = x2;
             this.y2 = y2;
             this.z2 = z2;
+
+            this.edge0 = (x2 - x1) * (y0 - y1) - (y2 - y1) * (x0 - x1);
+            this.edge1 = (x0 - x2) * (y1 - y2) - (y0 - y2) * (x1 - x2);
+            this.edge2 = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
         }
 
         @Override
         public void setColor(int x, int y, Color c) {
-            float area = edgeFunction(x0, y0, x1, y1, x2, y2);
-            if (Math.abs(area) < 1e-6f) return;
+            float w0 = ((x2 - x1) * (y - y1) - (y2 - y1) * (x - x1)) / edge0;
+            float w1 = ((x0 - x2) * (y - y2) - (y0 - y2) * (x - x2)) / edge1;
+            float w2 = ((x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)) / edge2;
 
-            float w0 = edgeFunction(x1, y1, x2, y2, x, y) / area;
-            float w1 = edgeFunction(x2, y2, x0, y0, x, y) / area;
-            float w2 = edgeFunction(x0, y0, x1, y1, x, y) / area;
-
-            if (w0 >= -1e-6f && w1 >= -1e-6f && w2 >= -1e-6f) {
+            if (w0 >= -0.001f && w1 >= -0.001f && w2 >= -0.001f) {
                 float z = w0 * z0 + w1 * z1 + w2 * z2;
+
                 if (zBuffer.testAndSet(x, y, z)) {
                     delegate.setColor(x, y, c);
                 }
@@ -500,7 +516,7 @@ public class RenderEngine {
         private final Vector2f[] texCoords;
         private final Light light;
         private final Texture texture;
-        private final Vector3f cameraPos;
+        private final javax.vecmath.Vector3f cameraPos;
         private final Color baseColor;
 
         public PixelWriterAdvancedWrapper(PixelWriter delegate, ZBuffer zBuffer,
@@ -511,7 +527,7 @@ public class RenderEngine {
                                           int x2, int y2, float z2,
                                           Vector3f worldPos2, Vector3f normal2, Vector2f texCoord2,
                                           Light light, Texture texture,
-                                          Vector3f cameraPos, Color baseColor) {
+                                          javax.vecmath.Vector3f cameraPos, Color baseColor) {
             this.delegate = delegate;
             this.zBuffer = zBuffer;
             this.x0 = x0;
@@ -533,7 +549,6 @@ public class RenderEngine {
             this.baseColor = baseColor;
         }
 
-
         @Override
         public void setColor(int x, int y, Color c) {
             float area = edgeFunction(x0, y0, x1, y1, x2, y2);
@@ -543,119 +558,87 @@ public class RenderEngine {
             float w1 = edgeFunction(x2, y2, x0, y0, x, y) / area;
             float w2 = edgeFunction(x0, y0, x1, y1, x, y) / area;
 
-            if (w0 >= -1e-6f && w1 >= -1e-6f && w2 >= -1e-6f) {
+            if (w0 >= -0.001f && w1 >= -0.001f && w2 >= -0.001f) {
                 float z = w0 * z0 + w1 * z1 + w2 * z2;
 
-                boolean drawPixel = true; // Всегда рисуем
-
-                if (drawPixel) {
-                    Color finalColor = c;
-
-                    if (texture != null && texCoords[0] != null && texture.isLoaded()) {
-                        try {
-                            float oneOverZ0 = 1.0f / Math.max(z0, 0.0001f);
-                            float oneOverZ1 = 1.0f / Math.max(z1, 0.0001f);
-                            float oneOverZ2 = 1.0f / Math.max(z2, 0.0001f);
-
-                            float uOverZ0 = texCoords[0].x * oneOverZ0;
-                            float vOverZ0 = texCoords[0].y * oneOverZ0;
-                            float uOverZ1 = texCoords[1].x * oneOverZ1;
-                            float vOverZ1 = texCoords[1].y * oneOverZ1;
-                            float uOverZ2 = texCoords[2].x * oneOverZ2;
-                            float vOverZ2 = texCoords[2].y * oneOverZ2;
-
-                            float uOverZ = w0 * uOverZ0 + w1 * uOverZ1 + w2 * uOverZ2;
-                            float vOverZ = w0 * vOverZ0 + w1 * vOverZ1 + w2 * vOverZ2;
-
-                            float oneOverZ = w0 * oneOverZ0 + w1 * oneOverZ1 + w2 * oneOverZ2;
-
-                            float texU = uOverZ / oneOverZ;
-                            float texV = vOverZ / oneOverZ;
-
-                            texV = 1.0f - texV;
-
-
-                            finalColor = texture.getColor(texU, texV);
-
-                        } catch (Exception e) {
-                            finalColor = Color.RED;
-                        }
-                    }
-                    delegate.setColor(x, y, finalColor);
+                if (!zBuffer.testAndSet(x, y, z)) {
+                    return;
                 }
+
+                Color finalColor = c;
+
+                if (texture != null && texCoords[0] != null && texture.isLoaded()) {
+                    try {
+                        float zInv0 = 1.0f / (z0 + 1e-6f);
+                        float zInv1 = 1.0f / (z1 + 1e-6f);
+                        float zInv2 = 1.0f / (z2 + 1e-6f);
+
+                        float texU_divZ = w0 * texCoords[0].x * zInv0 +
+                                w1 * texCoords[1].x * zInv1 +
+                                w2 * texCoords[2].x * zInv2;
+                        float texV_divZ = w0 * texCoords[0].y * zInv0 +
+                                w1 * texCoords[1].y * zInv1 +
+                                w2 * texCoords[2].y * zInv2;
+                        float zInv = w0 * zInv0 + w1 * zInv1 + w2 * zInv2;
+
+                        float texU = texU_divZ / zInv;
+                        float texV = texV_divZ / zInv;
+
+                        texV = 1.0f - texV;
+
+                        texU = texU - (float)Math.floor(texU);
+                        texV = texV - (float)Math.floor(texV);
+
+                        finalColor = texture.getColor(texU, texV);
+
+                    } catch (Exception e) {
+                        System.err.println("Texture error: " + e.getMessage());
+                        finalColor = Color.RED;
+                    }
+                }
+
+                if (light != null && settings.isUseLighting()) {
+                    Vector3f worldPos = new Vector3f(
+                            w0 * worldPositions[0].x + w1 * worldPositions[1].x + w2 * worldPositions[2].x,
+                            w0 * worldPositions[0].y + w1 * worldPositions[1].y + w2 * worldPositions[2].y,
+                            w0 * worldPositions[0].z + w1 * worldPositions[1].z + w2 * worldPositions[2].z
+                    );
+
+                    Vector3f normal = new Vector3f(
+                            w0 * normals[0].x + w1 * normals[1].x + w2 * normals[2].x,
+                            w0 * normals[0].y + w1 * normals[1].y + w2 * normals[2].y,
+                            w0 * normals[0].z + w1 * normals[1].z + w2 * normals[2].z
+                    );
+                    normal.normalize();
+
+                    Vector3f lightDir = light.getDirectionTo(worldPos);
+                    lightDir.normalize();
+
+                    float diff = Math.max(Vector3f.dot(normal, lightDir), 0.0f);
+                    float ambient = 0.2f;
+
+                    float lightIntensity = ambient + diff * light.getIntensity();
+                    lightIntensity = Math.min(1.0f, Math.max(0.0f, lightIntensity));
+
+                    float r = (float)finalColor.getRed() * lightIntensity;
+                    float g = (float)finalColor.getGreen() * lightIntensity;
+                    float b = (float)finalColor.getBlue() * lightIntensity;
+
+                    Vector3f lightColor = light.getColor();
+                    r *= lightColor.x;
+                    g *= lightColor.y;
+                    b *= lightColor.z;
+
+                    finalColor = Color.color(
+                            Math.min(1.0f, Math.max(0.0f, r)),
+                            Math.min(1.0f, Math.max(0.0f, g)),
+                            Math.min(1.0f, Math.max(0.0f, b)),
+                            finalColor.getOpacity()
+                    );
+                }
+
+                delegate.setColor(x, y, finalColor);
             }
-        }
-
-        private Color applyLighting(Color color, Vector3f worldPos, Vector3f normal) {
-            Vector3f viewDir = new Vector3f(
-                    cameraPos.x - worldPos.x,
-                    cameraPos.y - worldPos.y,
-                    cameraPos.z - worldPos.z
-            );
-            viewDir.normalize();
-
-            Vector3f materialColor = new Vector3f(
-                    (float) color.getRed(),
-                    (float) color.getGreen(),
-                    (float) color.getBlue()
-            );
-
-            Vector3f lightColor = calculatePhongLighting(light, worldPos, normal, viewDir, materialColor);
-
-            return Color.color(
-                    Math.min(1.0, Math.max(0.0, lightColor.x)),
-                    Math.min(1.0, Math.max(0.0, lightColor.y)),
-                    Math.min(1.0, Math.max(0.0, lightColor.z)),
-                    color.getOpacity()
-            );
-        }
-
-        private Vector3f calculatePhongLighting(
-                Light light,
-                Vector3f point,
-                Vector3f normal,
-                Vector3f viewDir,
-                Vector3f materialColor) {
-
-            Vector3f lightPos = light.getPosition();
-
-            Vector3f lightDir = new Vector3f(
-                    lightPos.x - point.x,
-                    lightPos.y - point.y,
-                    lightPos.z - point.z
-            );
-            lightDir.normalize();
-
-            float diff = Math.max(Vector3f.dot(normal, lightDir), 0.0f);
-
-            Vector3f reflectDir = Vector3f.reflect(
-                    new Vector3f(-lightDir.x, -lightDir.y, -lightDir.z),
-                    normal
-            );
-            float spec = (float) Math.pow(Math.max(Vector3f.dot(viewDir, reflectDir), 0.0f), 32);
-
-            Vector3f lightColorVec = light.getColor();
-            float intensity = light.getIntensity();
-
-            Vector3f result = new Vector3f(
-                    materialColor.x * (0.1f +
-                            diff * lightColorVec.x * intensity +
-                            spec * lightColorVec.x * intensity),
-
-                    materialColor.y * (0.1f +
-                            diff * lightColorVec.y * intensity +
-                            spec * lightColorVec.y * intensity),
-
-                    materialColor.z * (0.1f +
-                            diff * lightColorVec.z * intensity +
-                            spec * lightColorVec.z * intensity)
-            );
-
-            result.x = Math.min(1.0f, Math.max(0.0f, result.x));
-            result.y = Math.min(1.0f, Math.max(0.0f, result.y));
-            result.z = Math.min(1.0f, Math.max(0.0f, result.z));
-
-            return result;
         }
 
         @Override
