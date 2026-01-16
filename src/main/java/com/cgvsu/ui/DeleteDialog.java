@@ -65,7 +65,6 @@ public class DeleteDialog extends Dialog<DeleteDialog.Result> {
 
         getDialogPane().setContent(grid);
 
-        // Кнопки
         ButtonType deleteButton = new ButtonType("Удалить", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButton = new ButtonType("Отмена", ButtonBar.ButtonData.CANCEL_CLOSE);
         getDialogPane().getButtonTypes().addAll(deleteButton, cancelButton);

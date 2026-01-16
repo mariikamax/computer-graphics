@@ -34,6 +34,8 @@ public class GuiController {
 
     @FXML
     public void initialize() {
+
+        anchorPane.getStyleClass().add("light-theme");
         sceneManager = new SceneManager();
 
         modelListView = new ModelListView();
@@ -156,22 +158,42 @@ public class GuiController {
                                     model.vertices.size(),
                                     model.polygons.size()
                             );
+                            propertiesPane.updateFromModel(model);
                         }
                     }
                 });
     }
 
     private void setupMenuListeners() {
-
         menuBar.getOpenMenuItem().setOnAction(e -> loadModel());
-
         menuBar.getSaveMenuItem().setOnAction(e -> saveModel());
-
         menuBar.getExitMenuItem().setOnAction(e -> {
             Stage stage = (Stage) anchorPane.getScene().getWindow();
             stage.close();
         });
 
+        menuBar.getLightThemeItem().setOnAction(e -> switchToLightTheme());
+        menuBar.getDarkThemeItem().setOnAction(e -> switchToDarkTheme());
+    }
+
+    private void switchToLightTheme() {
+        anchorPane.getStyleClass().remove("dark-theme");
+        if (!anchorPane.getStyleClass().contains("light-theme")) {
+            anchorPane.getStyleClass().add("light-theme");
+        }
+
+        Pane rightPanel = (Pane) ((BorderPane) ((VBox) anchorPane.getChildren().get(0)).getChildren().get(1)).getCenter();
+        rightPanel.setStyle("-fx-background-color: WHITE; -fx-border-color: #cccccc; -fx-border-width: 1;");
+    }
+
+    private void switchToDarkTheme() {
+        anchorPane.getStyleClass().remove("light-theme");
+        if (!anchorPane.getStyleClass().contains("dark-theme")) {
+            anchorPane.getStyleClass().add("dark-theme");
+        }
+
+        Pane rightPanel = (Pane) ((BorderPane) ((VBox) anchorPane.getChildren().get(0)).getChildren().get(1)).getCenter();
+        rightPanel.setStyle("-fx-background-color: #2b2b2b; -fx-border-color: #444; -fx-border-width: 1;");
     }
 
     private void showDeleteDialog() {

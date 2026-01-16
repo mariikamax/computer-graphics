@@ -3,6 +3,59 @@
     -fx-font-size: 13px;
 }
 
+.light-theme {
+    -fx-background-color: #f8f9fa;
+    -fx-text-fill: #333333;
+}
+
+.light-theme .vbox,
+.light-theme .hbox,
+.light-theme .border-pane {
+    -fx-background-color: #f8f9fa;
+}
+
+.light-theme .menu-bar {
+    -fx-background-color: #e9ecef;
+}
+
+.light-theme .menu-bar .menu {
+    -fx-text-fill: #333333;
+}
+
+.light-theme .menu-bar .menu-item {
+    -fx-text-fill: #333333;
+}
+
+.light-theme .menu-bar .menu-item:hover {
+    -fx-background-color: #dee2e6;
+}
+
+.dark-theme {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #ffffff;
+}
+
+.dark-theme .vbox,
+.dark-theme .hbox,
+.dark-theme .border-pane {
+    -fx-background-color: #2b2b2b;
+}
+
+.dark-theme .menu-bar {
+    -fx-background-color: #3c3c3c;
+}
+
+.dark-theme .menu-bar .menu {
+    -fx-text-fill: #ffffff;
+}
+
+.dark-theme .menu-bar .menu-item {
+    -fx-text-fill: #ffffff;
+}
+
+.dark-theme .menu-bar .menu-item:hover {
+    -fx-background-color: #555555;
+}
 
 .button {
     -fx-background-color: #4a90e2;
@@ -17,10 +70,23 @@
     -fx-background-color: #3a7bc8;
 }
 
+.dark-theme .button {
+    -fx-background-color: #555;
+}
+
+.dark-theme .button:hover {
+    -fx-background-color: #666;
+}
+
 .list-view {
     -fx-border-color: #cccccc;
     -fx-border-radius: 4px;
     -fx-background-radius: 4px;
+}
+
+.dark-theme .list-view {
+    -fx-background-color: #3c3c3c;
+    -fx-border-color: #555;
 }
 
 .list-cell {
@@ -32,17 +98,53 @@
     -fx-text-fill: white;
 }
 
+.dark-theme .list-cell {
+    -fx-background-color: #3c3c3c;
+    -fx-text-fill: #ffffff;
+}
+
+.dark-theme .list-cell:selected {
+    -fx-background-color: #4a90e2;
+    -fx-text-fill: white;
+}
+
 .text-field {
     -fx-border-color: #cccccc;
     -fx-border-radius: 4px;
     -fx-padding: 3px 5px;
 }
 
+.dark-theme .text-field {
+    -fx-background-color: #3c3c3c;
+    -fx-text-fill: white;
+    -fx-border-color: #555;
+}
+
 .check-box {
     -fx-padding: 3px 0;
+}
+
+.dark-theme .check-box {
+    -fx-text-fill: white;
 }
 
 .color-picker {
     -fx-border-color: #cccccc;
     -fx-border-radius: 4px;
+}
+
+.dark-theme .color-picker {
+    -fx-border-color: #555;
+}
+
+.label {
+    -fx-text-fill: inherit;
+}
+
+.radio-menu-item {
+    -fx-text-fill: inherit;
+}
+
+.radio-menu-item:selected {
+    -fx-font-weight: bold;
 }

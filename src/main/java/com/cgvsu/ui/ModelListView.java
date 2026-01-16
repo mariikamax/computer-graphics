@@ -22,7 +22,6 @@ public class ModelListView extends BorderPane {
         Label title = new Label("Модели на сцене");
         title.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
 
-        // Список моделей
         modelList = new ListView<>();
         modelList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         modelList.setPrefHeight(180);
