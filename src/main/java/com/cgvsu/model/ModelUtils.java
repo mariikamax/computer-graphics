@@ -6,7 +6,7 @@ import java.util.*;
 public class ModelUtils {
 
     public static void triangulate(Model model) {
-        if (model.isTriangulated()) return;
+        if (model.triangulated) return;
 
         ArrayList<Polygon> newPolygons = new ArrayList<>();
 
@@ -101,8 +101,7 @@ public class ModelUtils {
         }
 
         model.polygons = newPolygons;
-        model.setTriangulated(true);
-    }
+        model.triangulated = true;    }
 
     public static void calculateNormals(Model model) {
         model.normals.clear();
@@ -137,23 +136,51 @@ public class ModelUtils {
                     v2.z - v0.z
             );
 
-            Vector3f faceNormal = Vector3f.crossProduct(edge1, edge2);
-            faceNormal.normalize();
+            // ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ crossProduct (строки 140-144):
+            Vector3f faceNormal = crossProduct(edge1, edge2);
+            faceNormal = normalize(faceNormal);
 
             for (int vertexIndex : vertexIndices) {
-                vertexNormals[vertexIndex].add(faceNormal);
+                // ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ add:
+                vertexNormals[vertexIndex] = add(vertexNormals[vertexIndex], faceNormal);
                 vertexFaceCount[vertexIndex]++;
             }
         }
 
         for (int i = 0; i < model.vertices.size(); i++) {
             if (vertexFaceCount[i] > 0) {
-                vertexNormals[i].multiply(1.0f / vertexFaceCount[i]);
-                vertexNormals[i].normalize();
+                // ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ multiply:
+                vertexNormals[i] = multiply(vertexNormals[i], 1.0f / vertexFaceCount[i]);
+                vertexNormals[i] = normalize(vertexNormals[i]);
                 model.normals.add(vertexNormals[i]);
             } else {
                 model.normals.add(new Vector3f(0, 0, 0));
             }
         }
+    }
+
+    // ДОБАВИТЬ В КОНЕЦ КЛАССА ВРЕМЕННЫЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ:
+    private static Vector3f crossProduct(Vector3f v1, Vector3f v2) {
+        return new Vector3f(
+                v1.y * v2.z - v1.z * v2.y,
+                v1.z * v2.x - v1.x * v2.z,
+                v1.x * v2.y - v1.y * v2.x
+        );
+    }
+
+    private static Vector3f add(Vector3f v1, Vector3f v2) {
+        return new Vector3f(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+    }
+
+    private static Vector3f multiply(Vector3f v, float scalar) {
+        return new Vector3f(v.x * scalar, v.y * scalar, v.z * scalar);
+    }
+
+    private static Vector3f normalize(Vector3f v) {
+        float length = (float)Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        if (length > 0.00001f) {
+            return new Vector3f(v.x / length, v.y / length, v.z / length);
+        }
+        return new Vector3f(0, 0, 0);
     }
 }

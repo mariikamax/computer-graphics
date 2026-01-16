@@ -15,6 +15,7 @@
             <MenuItem text="Open Model" onAction="#onOpenModelMenuItemClick"/>
             <SeparatorMenuItem/>
             <MenuItem text="Load Texture" onAction="#handleLoadTexture"/>
+            <MenuItem text="Choose Fill Color" onAction="#handleChooseColor"/>
         </Menu>
     </MenuBar>
 
@@ -55,6 +56,7 @@
         <CheckBox fx:id="fillPolygonsCheckBox" text="Fill Polygons" onAction="#handleFillPolygons" selected="true"/>
         <CheckBox fx:id="textureCheckBox" text="Texture" onAction="#handleTexture"/>
         <CheckBox fx:id="lightingCheckBox" text="Lighting" onAction="#handleLighting"/>
+        <Button text="Choose Color" onAction="#handleChooseColor" maxWidth="Infinity"/>
 
         <Separator/>
 

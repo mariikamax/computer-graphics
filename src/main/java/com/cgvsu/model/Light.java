@@ -54,7 +54,8 @@ public class Light {
                 point.y - position.y,
                 point.z - position.z
         );
-        return direction.normalize();
+        direction.normalize();
+        return direction;
     }
 
     public float getDistanceTo(Vector3f point) {

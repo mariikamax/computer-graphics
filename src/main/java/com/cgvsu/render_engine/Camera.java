@@ -41,11 +41,15 @@ public class Camera {
     }
 
     public void movePosition(final Vector3f translation) {
-        this.position.add(translation);
+        this.position.x += translation.x;
+        this.position.y += translation.y;
+        this.position.z += translation.z;
     }
 
     public void moveTarget(final Vector3f translation) {
-        this.target.add(translation);
+        this.target.x += translation.x;
+        this.target.y += translation.y;
+        this.target.z += translation.z;
     }
 
     Matrix4f getViewMatrix() {

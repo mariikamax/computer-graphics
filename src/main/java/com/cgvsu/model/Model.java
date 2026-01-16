@@ -10,4 +10,14 @@ public class Model {
     public ArrayList<Vector2f> textureVertices = new ArrayList<Vector2f>();
     public ArrayList<Vector3f> normals = new ArrayList<Vector3f>();
     public ArrayList<Polygon> polygons = new ArrayList<Polygon>();
+    public boolean triangulated = false;
+
+    public boolean isTriangulated() {
+        return triangulated;
+    }
+
+    public void setTriangulated(boolean triangulated) {
+        this.triangulated = triangulated;
+    }
+
 }
