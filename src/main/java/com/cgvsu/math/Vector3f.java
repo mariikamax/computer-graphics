@@ -15,7 +15,7 @@ public class Vector3f {
             y /= length;
             z /= length;
         }
-        return this;  // ← ВАЖНО: возвращает this!
+        return this;
     }
 
     public boolean equals(Vector3f other) {

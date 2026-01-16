@@ -28,21 +28,17 @@ public class Scene {
     private Model createSimpleCameraModel(Camera camera) {
         Model model = new Model();
 
-        // Позиция камеры
         Vector3f pos = camera.getPosition();
         Vector3f target = camera.getTarget();
 
-        // Создаем простую пирамиду для визуализации камеры
         model.vertices.add(new Vector3f(pos.x, pos.y, pos.z)); // Вершина пирамиды
 
-        // Основание пирамиды
         float size = 2.0f;
         model.vertices.add(new Vector3f(pos.x - size, pos.y - size, pos.z + size * 2));
         model.vertices.add(new Vector3f(pos.x + size, pos.y - size, pos.z + size * 2));
         model.vertices.add(new Vector3f(pos.x + size, pos.y + size, pos.z + size * 2));
         model.vertices.add(new Vector3f(pos.x - size, pos.y + size, pos.z + size * 2));
 
-        // Создаем полигоны для пирамиды
         Polygon poly1 = new Polygon();
         poly1.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         model.polygons.add(poly1);
@@ -59,7 +55,6 @@ public class Scene {
         poly4.setVertexIndices(new ArrayList<>(Arrays.asList(0, 4, 1)));
         model.polygons.add(poly4);
 
-        // Основание
         Polygon base = new Polygon();
         base.setVertexIndices(new ArrayList<>(Arrays.asList(1, 2, 3, 4)));
         model.polygons.add(base);

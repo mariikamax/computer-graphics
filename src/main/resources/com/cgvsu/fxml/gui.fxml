@@ -3,65 +3,89 @@
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.cgvsu.GuiController"
-            fx:id="anchorPane">
+<BorderPane xmlns="http://javafx.com/javafx/17.0.2-ea"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.cgvsu.GuiController">
 
-    <MenuBar AnchorPane.topAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
-        <Menu text="File">
-            <MenuItem text="Open Model" onAction="#onOpenModelMenuItemClick"/>
-            <SeparatorMenuItem/>
-            <MenuItem text="Load Texture" onAction="#handleLoadTexture"/>
-            <MenuItem text="Choose Fill Color" onAction="#handleChooseColor"/>
-        </Menu>
-    </MenuBar>
+    <top>
+        <MenuBar>
+            <Menu text="File">
+                <MenuItem text="Open Model" onAction="#onOpenModelMenuItemClick"/>
+            </Menu>
+        </MenuBar>
+    </top>
 
-    <Canvas fx:id="canvas"
-            AnchorPane.topAnchor="30"
-            AnchorPane.bottomAnchor="150"
-            AnchorPane.leftAnchor="0"
-            AnchorPane.rightAnchor="200"/>
+    <center>
+        <AnchorPane fx:id="anchorPane">
+            <Canvas fx:id="canvas"
+                    width="800"
+                    height="600"
+                    AnchorPane.topAnchor="0.0"
+                    AnchorPane.bottomAnchor="0.0"
+                    AnchorPane.leftAnchor="0.0"
+                    AnchorPane.rightAnchor="0.0"/>
+        </AnchorPane>
+    </center>
 
-    <VBox fx:id="controlPanel" spacing="10"
-          AnchorPane.topAnchor="30"
-          AnchorPane.bottomAnchor="0"
-          AnchorPane.rightAnchor="0"
-          prefWidth="200"
-          style="-fx-background-color: #f5f5f5; -fx-border-color: #ddd; -fx-border-width: 0 0 0 1;">
-        <padding>
-            <Insets top="10" right="10" bottom="10" left="10"/>
-        </padding>
+    <right>
+        <VBox fx:id="controlPanel" spacing="10" prefWidth="250">
 
-        <Label text="Camera Controls" style="-fx-font-weight: bold;"/>
-        <HBox spacing="5">
-            <Button text="Forward" onAction="#handleCameraForward" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-            <Button text="Back" onAction="#handleCameraBackward" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-        </HBox>
-        <HBox spacing="5">
-            <Button text="Left" onAction="#handleCameraLeft" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-            <Button text="Right" onAction="#handleCameraRight" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-        </HBox>
-        <HBox spacing="5">
-            <Button text="Up" onAction="#handleCameraUp" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-            <Button text="Down" onAction="#handleCameraDown" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-        </HBox>
+            <!-- Информация о модели -->
+            <VBox spacing="5">
+                <Label text="Текущая модель:" style="-fx-font-weight: bold;"/>
+                <Label fx:id="modelNameLabel" text="Нет модели"/>
+            </VBox>
 
-        <Separator/>
+            <!-- Настройки рендеринга -->
+            <VBox spacing="5">
+                <Label text="Настройки отрисовки:" style="-fx-font-weight: bold;"/>
+                <CheckBox fx:id="fillPolygonsCheckBox" text="Заливка полигонов"
+                          onAction="#handleFillPolygons"/>
+                <CheckBox fx:id="wireframeCheckBox" text="Полигональная сетка"
+                          onAction="#handleWireframe"/>
+                <CheckBox fx:id="textureCheckBox" text="Использовать текстуру"
+                          onAction="#handleTexture"/>
+                <CheckBox fx:id="lightingCheckBox" text="Использовать освещение"
+                          onAction="#handleLighting"/>
 
-        <Label text="Render Settings" style="-fx-font-weight: bold;"/>
-        <CheckBox fx:id="wireframeCheckBox" text="Wireframe" onAction="#handleWireframe"/>
-        <CheckBox fx:id="fillPolygonsCheckBox" text="Fill Polygons" onAction="#handleFillPolygons" selected="true"/>
-        <CheckBox fx:id="textureCheckBox" text="Texture" onAction="#handleTexture"/>
-        <CheckBox fx:id="lightingCheckBox" text="Lighting" onAction="#handleLighting"/>
-        <Button text="Choose Color" onAction="#handleChooseColor" maxWidth="Infinity"/>
+                <HBox spacing="10">
+                    <Button text="Загрузить текстуру" onAction="#handleLoadTexture"/>
+                    <Button text="Выбрать цвет" onAction="#handleChooseColor"/>
+                </HBox>
+            </VBox>
 
-        <Separator/>
+            <!-- Управление камерой (ДОБАВЛЕНО) -->
+            <VBox spacing="5">
+                <Label text="Управление камерой:" style="-fx-font-weight: bold;"/>
 
-        <Label text="Current Model:"/>
-        <Label fx:id="modelNameLabel" text="No model loaded" style="-fx-font-style: italic;"/>
-    </VBox>
+                <GridPane hgap="5" vgap="5">
+                    <Button text="Вперед" onAction="#handleCameraForward"
+                            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                    <Button text="Назад" onAction="#handleCameraBackward"
+                            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    <Button text="Влево" onAction="#handleCameraLeft"
+                            GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <Button text="Вправо" onAction="#handleCameraRight"
+                            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                    <Button text="Вверх" onAction="#handleCameraUp"
+                            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                    <Button text="Вниз" onAction="#handleCameraDown"
+                            GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+                </GridPane>
 
-</AnchorPane>
+                <HBox spacing="10">
+                    <Button text="Добавить камеру" onAction="#addCamera"/>
+                    <Button text="Удалить камеру" onAction="#removeCamera"/>
+                </HBox>
+
+                <HBox spacing="10">
+                    <Button text="Переключить камеру" onAction="#switchCamera"/>
+                    <Button text="Привязать свет" onAction="#attachLightToCamera"/>
+                </HBox>
+            </VBox>
+
+        </VBox>
+    </right>
+
+</BorderPane>

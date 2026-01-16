@@ -9,13 +9,13 @@ public class Camera {
             final Vector3f position,
             final Vector3f target,
             final float fov,
-            final float aspectRatio, // ДОБАВИТЬ
+            final float aspectRatio,
             final float nearPlane,
             final float farPlane) {
         this.position = position;
         this.target = target;
         this.fov = fov;
-        this.aspectRatio = aspectRatio; // Теперь это параметр
+        this.aspectRatio = aspectRatio;
         this.nearPlane = nearPlane;
         this.farPlane = farPlane;
     }

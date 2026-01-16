@@ -41,9 +41,6 @@ public class GuiController {
     private Canvas canvas;
 
     @FXML
-    private VBox controlPanel;
-
-    @FXML
     private CheckBox wireframeCheckBox;
 
     @FXML
@@ -128,7 +125,6 @@ public class GuiController {
         wireframeCheckBox.setSelected(false);
         textureCheckBox.setSelected(false);
         lightingCheckBox.setSelected(false);
-
     }
 
     private void initRenderSettings() {
@@ -191,7 +187,7 @@ public class GuiController {
     private void handleLoadTexture(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif")
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "jpeg")
         );
         fileChooser.setTitle("Load Texture");
 
@@ -208,101 +204,6 @@ public class GuiController {
                 showError("Failed to load texture: " + e.getMessage());
             }
         }
-    }
-
-    @FXML
-    private void addCamera() {
-        Camera newCamera = new Camera(
-                new Vector3f(20, 20, 50), // позиция
-                new Vector3f(0, 0, 0),    // target
-                (float) Math.toRadians(60.0),
-                1.0f,
-                0.01F,
-                100.0F
-        );
-        scene.addCamera(newCamera);
-        updateCameraMenu();
-    }
-
-    @FXML
-    private void removeCamera() {
-        if (scene.getCameras().size() > 1) {
-            scene.removeCamera(camera);
-            camera = scene.getActiveCamera();
-        } else {
-            showInfo("Cannot remove", "Must have at least one camera");
-        }
-    }
-
-    @FXML
-    private void switchCamera() {
-        List<Camera> cameras = scene.getCameras();
-        if (cameras.size() > 1) {
-            Camera current = scene.getActiveCamera();
-            int currentIndex = cameras.indexOf(current);
-            int nextIndex = (currentIndex + 1) % cameras.size();
-            scene.setActiveCamera(cameras.get(nextIndex));
-
-            showInfo("Camera Switched",
-                    "Now using camera " + (nextIndex + 1) + " of " + cameras.size());
-        }
-    }
-
-    @FXML
-    private void attachLightToCamera() {
-        Light light = scene.getLight();
-        Camera activeCam = scene.getActiveCamera();
-
-        if (activeCam != null) {
-            // Для DIRECTIONAL света - направление как у камеры
-            light.setType(Light.LightType.DIRECTIONAL);
-
-            // Позиция света - позади камеры
-            Vector3f camPos = activeCam.getPosition();
-            Vector3f camTarget = activeCam.getTarget();
-            Vector3f camDir = new Vector3f(
-                    camTarget.x - camPos.x,
-                    camTarget.y - camPos.y,
-                    camTarget.z - camPos.z
-            );
-
-            // Нормализуем и отодвигаем назад
-            float length = (float)Math.sqrt(camDir.x*camDir.x + camDir.y*camDir.y + camDir.z*camDir.z);
-            if (length > 0) {
-                camDir.x /= length;
-                camDir.y /= length;
-                camDir.z /= length;
-            }
-
-            // Свет позади и сверху от камеры
-            Vector3f lightPos = new Vector3f(
-                    camPos.x - camDir.x * 50,
-                    camPos.y - camDir.y * 50 + 30,
-                    camPos.z - camDir.z * 50
-            );
-
-            light.setPosition(lightPos);
-            light.setColor(new Vector3f(1, 1, 1)); // Белый свет
-
-            showInfo("Light Attached", "Light is now following the camera (directional)");
-        }
-    }
-
-    private void updateCameraMenu() {
-    }
-
-    private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Error");
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    private void showInfo(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 
     @FXML
@@ -329,19 +230,6 @@ public class GuiController {
 
         dialog.showAndWait().ifPresent(color -> {
             RenderEngine.getRenderSettings().setFillColor(color);
-        });
-
-
-        dialog.setResultConverter(buttonType -> {
-            if (buttonType == javafx.scene.control.ButtonType.OK) {
-                return colorPicker.getValue();
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(color -> {
-            RenderEngine.getRenderSettings().setFillColor(color);
-            System.out.println("Color selected: " + color);
         });
     }
 
@@ -373,5 +261,90 @@ public class GuiController {
     @FXML
     public void handleCameraDown(ActionEvent actionEvent) {
         camera.movePosition(new Vector3f(0, -TRANSLATION, 0));
+    }
+
+    @FXML
+    public void addCamera() {
+        Camera newCamera = new Camera(
+                new Vector3f(20, 20, 50),
+                new Vector3f(0, 0, 0),
+                (float) Math.toRadians(60.0),
+                1.0f,
+                0.01F,
+                100.0F
+        );
+        scene.addCamera(newCamera);
+    }
+
+    @FXML
+    public void removeCamera() {
+        if (scene.getCameras().size() > 1) {
+            scene.removeCamera(camera);
+            camera = scene.getActiveCamera();
+        } else {
+            showInfo("Cannot remove", "Must have at least one camera");
+        }
+    }
+
+    @FXML
+    public void switchCamera() {
+        List<Camera> cameras = scene.getCameras();
+        if (cameras.size() > 1) {
+            Camera current = scene.getActiveCamera();
+            int currentIndex = cameras.indexOf(current);
+            int nextIndex = (currentIndex + 1) % cameras.size();
+            scene.setActiveCamera(cameras.get(nextIndex));
+            showInfo("Camera Switched", "Now using camera " + (nextIndex + 1) + " of " + cameras.size());
+        }
+    }
+
+    @FXML
+    public void attachLightToCamera() {
+        Light light = scene.getLight();
+        Camera activeCam = scene.getActiveCamera();
+
+        if (activeCam != null) {
+            light.setType(Light.LightType.DIRECTIONAL);
+
+            Vector3f camPos = activeCam.getPosition();
+            Vector3f camTarget = activeCam.getTarget();
+            Vector3f camDir = new Vector3f(
+                    camTarget.x - camPos.x,
+                    camTarget.y - camPos.y,
+                    camTarget.z - camPos.z
+            );
+
+            float length = (float)Math.sqrt(camDir.x*camDir.x + camDir.y*camDir.y + camDir.z*camDir.z);
+            if (length > 0) {
+                camDir.x /= length;
+                camDir.y /= length;
+                camDir.z /= length;
+            }
+
+            Vector3f lightPos = new Vector3f(
+                    camPos.x - camDir.x * 50,
+                    camPos.y - camDir.y * 50 + 30,
+                    camPos.z - camDir.z * 50
+            );
+
+            light.setPosition(lightPos);
+            light.setColor(new Vector3f(1, 1, 1));
+
+            showInfo("Light Attached", "Light is now following the camera (directional)");
+        }
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }
