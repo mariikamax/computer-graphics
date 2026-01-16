@@ -12,23 +12,25 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.8.1</junit.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>17.0.0.1</version>
+            <version>17.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>17.0.0.1</version>
+            <version>17.0.2</version>
         </dependency>
         <dependency>
-            <groupId>java3d</groupId>
+            <groupId>javax.vecmath</groupId>
             <artifactId>vecmath</artifactId>
-            <version>1.3.1</version>
+            <version>1.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -53,8 +55,32 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <release>17</release>
                 </configuration>
             </plugin>
+
+            <!-- Плагин для запуска тестов -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+
+            <!-- Плагин для сборки с модулями Java -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.cgvsu.Simple3DViewer</mainClass>
+                </configuration>
+            </plugin>
+
             <!--
             for building jar using maven:
             mvn clean -Dmaven.clean.failOnError=false compile assembly:single -DskipTests=true
